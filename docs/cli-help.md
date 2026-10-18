@@ -26,8 +26,8 @@ Invocations: `dsh --help`
 Usage: dsh [--profile] <name> [options] [app-args...]
        dsh plugin --profile <name> <pnpm-args...>
 
-dsh: boot a DeepSeek Harness profile — an ordered stack of plugin-bundle patch
-layers under your own overrides.
+dsh: boot a AlphaDesk profile — an ordered stack of plugin-bundle patch layers
+under your own overrides.
 
 Arguments:
   args                           arguments for the booted profile's app (see:
@@ -134,7 +134,7 @@ Invocations: `dsh sdk --help`, `dsh --profile sdk --help`
 ```text
 Usage: dsh --profile sdk [options]
 
-Serve DeepSeek Harness SDK clients over stdio JSON-RPC.
+Serve AlphaDesk SDK clients over stdio JSON-RPC.
 
 Options:
   -h, --help  show this help
@@ -152,7 +152,7 @@ Invocations: `dsh sdk-minimal --help`, `dsh --profile sdk-minimal --help`
 ```text
 Usage: dsh --profile sdk-minimal [options]
 
-Serve DeepSeek Harness SDK clients over stdio JSON-RPC.
+Serve AlphaDesk SDK clients over stdio JSON-RPC.
 
 Options:
   -h, --help  show this help
@@ -170,7 +170,7 @@ Invocations: `dsh web --help`, `dsh --profile web --help`
 ```text
 Usage: dsh --profile web [options]
 
-Serve the DeepSeek Harness browser UI.
+Serve the AlphaDesk browser UI.
 
 Options:
   --host <host>                  bind address: one concrete IPv4 or IPv6 literal

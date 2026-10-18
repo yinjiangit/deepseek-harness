@@ -35,10 +35,10 @@ Status: implemented
 
 | 注册 | 内容 |
 |---|---|
-| section `harness:source`（`HARNESS_SOURCE` 位） | `The runtime context names the DeepSeek Harness implementation checkout. …`，其余说明不变 |
-| context `harness:source`（`CONTEXT_ORDERS.HARNESS_SOURCE = 200`） | `Current DeepSeek Harness implementation checkout: "<path>".` |
-| section `app:web-surface`（`WEB_SURFACE` 位） | `You are interacting with the user through the DeepSeek Harness Web GUI whose URL the runtime context names. …`，其余说明不变 |
-| context `app:web-surface`（`CONTEXT_ORDERS.WEB_SURFACE = 210`） | `Current DeepSeek Harness Web GUI URL: "<url>".` |
+| section `harness:source`（`HARNESS_SOURCE` 位） | `The runtime context names the AlphaDesk implementation checkout. …`，其余说明不变 |
+| context `harness:source`（`CONTEXT_ORDERS.HARNESS_SOURCE = 200`） | `Current AlphaDesk implementation checkout: "<path>".` |
+| section `app:web-surface`（`WEB_SURFACE` 位） | `You are interacting with the user through the AlphaDesk Web GUI whose URL the runtime context names. …`，其余说明不变 |
+| context `app:web-surface`（`CONTEXT_ORDERS.WEB_SURFACE = 210`） | `Current AlphaDesk Web GUI URL: "<url>".` |
 
 两个 context 都是可选项（不设 `required`）。唯一的 complete persona（web-app 的 minimal 预设）同时关闭了可选运行时上下文，因此它仍然看不到这两项。运行时上下文按既有机制工作：值不变不发新快照，变化时在本轮 user 消息前追加完整快照，恢复时从会话日志取上一份快照比较，不改写任何已提交消息。
 
@@ -48,8 +48,8 @@ Status: implemented
 
 | 旧模板 | 匹配规则 |
 |---|---|
-| `harness:source` | `The DeepSeek Harness implementation checkout is at ` 开头、旧版固定说明结尾、中间不含换行 |
-| `app:web-surface` | `You are interacting with the user through the DeepSeek Harness Web GUI at ` 开头、`. ` 加早期版本渲染的说明结尾（冻结为字面量）、中间不含换行 |
+| `harness:source` | `The AlphaDesk implementation checkout is at ` 开头、旧版固定说明结尾、中间不含换行 |
+| `app:web-surface` | `You are interacting with the user through the AlphaDesk Web GUI at ` 开头、`. ` 加早期版本渲染的说明结尾（冻结为字面量）、中间不含换行 |
 
 两个 section 的文本提供函数读取 `AssembleContext.agent.session` 的投影状态：有旧段落时原样返回该段落（`interpolate: false`），否则返回新说明。没有 agent 的诊断性组装使用新说明。`sessionProjections` 是插件的必需注入，投影单元由插件自己注册，因此存在 agent 时状态必然可读。
 

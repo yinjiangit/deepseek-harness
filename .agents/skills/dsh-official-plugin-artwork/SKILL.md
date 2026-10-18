@@ -1,6 +1,6 @@
 ---
 name: dsh-official-plugin-artwork
-description: Draw and review official DeepSeek Harness plugin icons and optional feature previews, including experimental plugins. Use for package artwork and PluginArtwork glyphs; covers semantic references, proportions, lettering, transparency, localization, package metadata, and designer review. Not for toolbar or action icons.
+description: Draw and review official AlphaDesk plugin icons and optional feature previews, including experimental plugins. Use for package artwork and PluginArtwork glyphs; covers semantic references, proportions, lettering, transparency, localization, package metadata, and designer review. Not for toolbar or action icons.
 ---
 
 # Official plugin artwork

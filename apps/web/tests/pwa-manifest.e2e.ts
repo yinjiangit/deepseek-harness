@@ -37,5 +37,5 @@ it('ships fixed-color favicons selected by document media queries', async () => 
   expect(light).not.toContain('<style>')
   expect(light).toContain('stroke="#174071"')
   expect(dark).toContain('stroke="#9CB4D8"')
-  expect(dark.replace('stroke="#9CB4D8"', 'stroke="#174071"')).toBe(light)
+  expect(dark.replace(/stroke="#9CB4D8"/gu, 'stroke="#174071"')).toBe(light)
 })

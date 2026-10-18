@@ -6,25 +6,25 @@
   {
     "colorScheme": "light",
     "reducedMotion": "no-preference",
-    "boxShadow": "oklab(0.589542 -0.0217781 -0.177995 / 0.4) 0px 0px 0px 2px",
+    "boxShadow": "oklab(0.370474 -0.0249233 -0.0924984 / 0.4) 0px 0px 0px 2px",
     "animated": true
   },
   {
     "colorScheme": "light",
     "reducedMotion": "reduce",
-    "boxShadow": "color(srgb 0.254902 0.462745 0.901961 / 0.4) 0px 0px 0px 2px",
+    "boxShadow": "color(srgb 0.0901961 0.25098 0.443137 / 0.4) 0px 0px 0px 2px",
     "animated": false
   },
   {
     "colorScheme": "dark",
     "reducedMotion": "no-preference",
-    "boxShadow": "oklab(0.739592 -0.02038 -0.132631 / 0.4) 0px 0px 0px 2px",
+    "boxShadow": "oklab(0.704319 -0.0167629 -0.0884073 / 0.4) 0px 0px 0px 2px",
     "animated": true
   },
   {
     "colorScheme": "dark",
     "reducedMotion": "reduce",
-    "boxShadow": "color(srgb 0.478431 0.666667 1 / 0.4) 0px 0px 0px 2px",
+    "boxShadow": "color(srgb 0.494118 0.631373 0.847059 / 0.4) 0px 0px 0px 2px",
     "animated": false
   }
 ]

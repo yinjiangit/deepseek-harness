@@ -57,21 +57,44 @@
 
 本机 pnpm 通过 corepack 提供：`COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm <script>`。
 
-## 阶段二：Desktop 端（待做）
+## 阶段二：Desktop 端（已完成，2026-10-18）
 
-Web 端效果确认后实施；锚点已勘察：
+### 新增（fork 自有）
 
-- `scripts/client-build-environment.ts` `OFFICIAL_CLIENT_BUILD_ENVIRONMENT.DSH_CLIENT_TITLE`：桌面打包强制标题，改为 `AlphaDesk`（当前 `DeepSeek Harness`，否则安装器静默回官方名）。
-- `apps/desktop/src/locale.ts`（菜单/About/退出确认的全部 `DeepSeek Harness` 字样）。
-- `apps/desktop/installer/strings.nsh`（NSIS 英文/简中文案）。
-- `apps/desktop/scripts/electron-builder-config.mjs`（productName/协议/appId/产物命名）与 `apps/desktop/src/main.ts` 的 applicationName。
-- `apps/desktop/resources/` 7 个图标文件与 `apps/desktop/installer/assets/` 品牌图、`apps/desktop/renderer/assets/welcome-brand.svg`：用 AlphaDesk 标志重制（macOS/Windows 各规格）。
-- `apps/desktop/renderer/welcome.css`：内嵌 `Montserrat` 品牌字体引用，改跟随系统栈。
+| 路径 | 内容 |
+|---|---|
+| `apps/desktop/scripts/gen-alphadesk-assets.mjs` | 资产生成器：navy tile + A 标志 → 双平台图标 PNG/SVG、安装器品牌图、welcome 字标（sharp 栅格化）；改几何后重跑 `pnpm exec tsx scripts/gen-alphadesk-assets.mjs` + `pnpm run render:tray-icon` |
 
-## 功能性残留（非品牌暴露，按需处理）
+### 修改（同步时逐条重放）
 
-以下字符串引用 DeepSeek 平台账号/模型 API/搜索服务本身，属功能语义，未改动：
+| 路径 | 改动 |
+|---|---|
+| `scripts/client-build-environment.ts` | `OFFICIAL_CLIENT_BUILD_ENVIRONMENT.DSH_CLIENT_TITLE` → `'AlphaDesk'`（桌面打包强制标题） |
+| `apps/desktop/src/locale.ts` | 全部产品名 → `AlphaDesk`；welcome 口号 → `Precision and discipline for the desk.` / `严谨专业，行稳致远`；地址占用文案的产品缩写 → AlphaDesk（`dsh` CLI 功能词保留） |
+| `apps/desktop/src/main.ts` | `applicationName` → `AlphaDesk` |
+| `apps/desktop/scripts/electron-builder-config.mjs` | `productName`/协议名/麦克风描述 → AlphaDesk（URL scheme 仍为 `dsh`，功能面不动） |
+| `apps/desktop/scripts/desktop-package-environment.mjs` 及其 spec | 未签名构建默认 appId → `com.alphadesk.app`（更新资格测试的 `com.deepseek.dsh.qualification.*` 内部身份不动） |
+| `apps/desktop/scripts/{package-macos,package-target,smoke-packaged-runtime,verify-retained-desktop,development-app}.ts(mjs)` | 产物路径/Bundle 名 → `AlphaDesk.app/.exe`；`CFBundleURLName` → AlphaDesk |
+| `apps/desktop/scripts/command-path.ps1` | 注册表键 → `Software\AlphaDesk\Command`；互斥锁 → `AlphaDesk.Command` |
+| `apps/desktop/scripts/render-tray-icon.ts` | tray 放大锚点 → `(512,512)`（跟随新标志几何） |
+| `apps/desktop/installer/strings.nsh` + `extract-report.h` | NSIS 双语产品名、提取失败报告 → AlphaDesk |
+| `apps/desktop/cli/dsh`、`dsh.cmd`、`electron-builder.config.d.mts` | 启动器可执行名 → `AlphaDesk(.exe)`；d.mts 协议类型注释同步 |
+| `apps/desktop/renderer/welcome.css` | `--dsw-font-family-brand` 去 Montserrat，跟随系统栈 |
+| `apps/desktop/resources/`、`installer/assets/`、`renderer/assets/welcome-brand.svg` | 全部品牌二进制/SVG 用生成器重制 |
+| `apps/cli/src/{args,plugin}.ts` + `docs/cli-help*.md` | CLI 帮助/徽章产品名 → AlphaDesk；`docs/cli-help*.md` 由 `pnpm run gen-cli-help` 重生成 |
+| `packages/client/ui-settings-account/src/client/locales{.ts,/onboarding.ts}` | 桌面引导/账号页产品名 → AlphaDesk |
+| `packages/context/harness-dev-context/src/index.ts` | 模型可见 runtime-context 提示中的产品名 → AlphaDesk（模型可见 ⟺ 已记日志；其 spec 与 web 期望同 PR 更新） |
+| 测试期望 | `apps/desktop/tests/**`（expected JSON/txt + 快照 `-u`）、`apps/web/tests/expected/**`、`apps/web/tests/{scaffold,assembled-boot}.ts`、`fixtures/assembled-remote.fixture.json`、`built-boot.expected.e2e.ts`（品牌位断言改为 alphadesk 全 profile 生效）机械同步 |
 
-- `packages/client/ui-settings-account/locale/zh.json`（DeepSeek 登录描述）
-- `packages/client/ui-settings-session-log/locale/zh.json`、`packages/client/ui-settings-web-search/locale/zh.json`
-- `apps/web/tests/scaffold.ts` 的 bonus-notice 公告正文（DeepSeek 0.2 预览公告；券商分发可考虑整体禁用该 notice 面板）。
+### 阶段二验证记录（2026-10-18）
+
+- `vitest run packages/context/harness-dev-context packages/client/ui-settings-account`：395 通过
+- `vitest run apps/desktop`：155 文件；除 5 个环境限制文件外全过（windows-cli-signals 需本机 Electron 二进制、upload-with-credentials 需 pwsh 7、windows-signature-* 签名枚举超时——均与品牌无关）；fatal-recovery/welcome-renderer 快照 `-u` 后重跑全过
+- `vitest.expected.config.ts`、`vitest.web.config.ts` built-boot、`verify-cli-help`：通过
+- 浏览器 e2e（desktop-onboarding 等）需 Playwright Chromium，本机网络受限时另行验证
+
+## 已知残留（按设计保留）
+
+- `docs/**` 叙述文档仍用 "DeepSeek Harness" 指代本项目（fork 文档策略：避开高频冲突区的大面积替换；产品面已全部改名）
+- `DSH_CLIENT_*` 环境变量名、`dsh` CLI 名、`dsh://` URL scheme、npm 包名 `@deepseek-ai/*`：功能标识符，不改
+- 功能性文案中的 DeepSeek 模型/账号/搜索引用（ui-settings-account 登录描述等）保留

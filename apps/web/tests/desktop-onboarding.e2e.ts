@@ -168,21 +168,21 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
         }), `${name}: primary action receives clicks across its height`).toBe(true)
       }
       if (name.includes('-en-')) {
+        // The fork retires the Montserrat brand face: brand typography follows
+        // the platform text stack, so no Montserrat face may load anywhere.
         const headingFont = await page.locator('h1').evaluate(element => ({
           font: getComputedStyle(element).fontFamily, weight: getComputedStyle(element).fontWeight,
         }))
-        expect(headingFont.font).toContain('Montserrat')
+        expect(headingFont.font).not.toContain('Montserrat')
         expect(headingFont.weight).toBe('300')
         const brandWeights = await page.locator('h1 em').evaluateAll(elements => elements.map(element => getComputedStyle(element).fontWeight))
         expect(brandWeights.every(weight => weight === '500')).toBe(true)
-        expect(await page.evaluate(async () => (await document.fonts.load('500 28px Montserrat')).length)).toBeGreaterThan(0)
         const copyFonts = await page.locator('[class*="heroDescription"], [class*="subtitle"], [class*="cardTitle"], [class*="cardDescription"]')
           .evaluateAll(elements => elements.map(element => getComputedStyle(element).fontFamily))
-        expect(copyFonts.every(font => font.includes('Montserrat'))).toBe(true)
+        expect(copyFonts.every(font => !font.includes('Montserrat'))).toBe(true)
         const buttonFonts = await page.locator('[class*="navigation"] button').evaluateAll(elements =>
           elements.map(element => getComputedStyle(element).fontFamily))
-        expect(buttonFonts.every(font => font.includes('Montserrat'))).toBe(true)
-        expect(await page.evaluate(async () => (await document.fonts.load('300 28px Montserrat')).length)).toBeGreaterThan(0)
+        expect(buttonFonts.every(font => !font.includes('Montserrat'))).toBe(true)
       }
       if ((name === 'purpose' || name === 'process') && viewport.height > 760) {
         const card = await page.locator('[class*="cardTitle"]').first().locator('..').boundingBox()
@@ -276,11 +276,11 @@ describe.skipIf(MODE === 'record')('web e2e: App-only desktop onboarding', () =>
     expect(await page.locator('[data-desktop-onboarding]').evaluate(element => getComputedStyle(element).filter)).toBe('none')
     expect(await page.getByRole('dialog').evaluate(element => getComputedStyle(element.previousElementSibling!).backdropFilter)).toBe('none')
     await page.getByRole('button', { name: '前往充值', exact: true }).click()
-    await page.getByRole('button', { name: '返回 DeepSeek Harness', exact: true }).waitFor()
+    await page.getByRole('button', { name: '返回 AlphaDesk', exact: true }).waitFor()
     expect((scaffold.ctx.settings.describe().find(row => row.ns === NS)?.value as { step: string }).step).toBe('credit')
     balanceFailure = true
     const readsBefore = balanceReads
-    await page.getByRole('button', { name: '返回 DeepSeek Harness', exact: true }).click()
+    await page.getByRole('button', { name: '返回 AlphaDesk', exact: true }).click()
     await page.getByRole('heading', { name: '准备可用额度', exact: true }).waitFor()
     await expect.poll(() => balanceReads).toBeGreaterThan(readsBefore)
     await expect.poll(() => page.getByRole('button', { name: '下一步', exact: true }).isEnabled()).toBe(true)
