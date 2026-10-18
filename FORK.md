@@ -39,7 +39,7 @@
 | `tsconfig.base.json` | paths 新增 `@deepseek-ai/dsh-client-ui-brand-alphadesk` → `./packages/client/ui-brand-alphadesk/src` |
 | `tsconfig.client.json` | references 新增 `{ "path": "./packages/client/ui-brand-alphadesk" }` |
 | `scripts/verify-repository-references.ts` | `excludedPrefixes` 增加 `python/sdk/uv.lock`（生成 lockfile 的哈希与本机 git 对象前缀撞车的误报，与 `vendor/` 同理豁免） |
-| `.gitignore` | 忽略 `.agents/skills/maintain-dsh-fork/`（本机技能工具，内含嵌套 dsh-plugin-guide git 克隆，不进版本库；正本在 `~/.zcode/skills/maintain-dsh-fork`） |
+| `.gitignore` | 忽略 `.agents/skills/maintain-dsh-fork/`（本机技能工具的项目级镜像，内含嵌套 dsh-plugin-guide git 克隆，不进版本库；正本在 `~/.zcode/skills/maintain-dsh-fork`，两处随每次「更新技能」同步）与 `skill-dist/`（技能包产物目录：只保留最新 `maintain-dsh-fork-v<version>.zip`，二进制不进版本库；打包与版本约定见该技能 SKILL.md「技能自更新」第 4 步） |
 | `scripts/verify-md-links.ts` | `markdownLinkSourcePaths` 排除谓词跳过 `.agents/skills/maintain-dsh-fork/`（镜像语料的相对链接在其源仓库解析） |
 | `scripts/project-doc-site.spec.ts` | 「real path escapes the repository」用例 `it.skipIf(process.platform === 'win32')`（建文件符号链接需 Windows 开发者模式，沿用仓内既有的 win32 skip 惯例） |
 | 生成物（重生成勿手改） | `docs/module-graph*.md`（gen-module-graph）、`docs/config-catalog*.md`（gen-config-catalog）、`packages/extensions/cordis-client-runner/src/client/slot-catalog.ts`（gen-client-catalog）、`packages/preset/agent-preset/skills/cordis-composition-reference/references/packages.md`（gen-plugin-packages） |

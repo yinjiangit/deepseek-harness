@@ -47,5 +47,7 @@ worktrees/
 .agents/worktrees/
 # Fork-local agent skill (nested dsh-plugin-guide git clone; maintained at ~/.zcode/skills/maintain-dsh-fork).
 .agents/skills/maintain-dsh-fork/
+# Fork-local skill package artifacts (only the latest maintain-dsh-fork-v<version>.zip; see FORK.md).
+skill-dist/
 .typert-*/
 native/system/test/bin/
