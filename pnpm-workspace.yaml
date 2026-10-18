@@ -114,3 +114,8 @@ patchedDependencies:
   app-builder-lib@26.17.0: patches/app-builder-lib@26.17.0.patch
   exceljs@4.4.0: patches/exceljs@4.4.0.patch
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch
+
+# Package scripts must not run a hidden install. Across 366 workspace projects
+# that implicit install costs minutes and masks dependency drift; run
+# `pnpm install` explicitly after changing dependencies.
+verifyDepsBeforeRun: false

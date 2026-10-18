@@ -88,6 +88,12 @@
 - `vitest.expected.config.ts`、`vitest.web.config.ts` built-boot、`verify-cli-help`：通过
 - 浏览器 e2e（desktop-onboarding 等）需 Playwright Chromium，本机网络受限时另行验证
 
+## 构建流水线（fork 自有，2026-10-19）
+
+| 路径 | 改动 |
+|---|---|
+| `pnpm-workspace.yaml` | 末尾追加 `verifyDepsBeforeRun: false`。366 个 workspace 项目下，`pnpm run` 前的隐式 install 实测耗时 10 分 43 秒，且掩盖 lockfile 与 node_modules 的漂移；改为显式 `pnpm install`（换依赖后必须手动执行）。上游同步时重放该键。 |
+
 ## 已知残留（按设计保留）
 
 - `docs/**` 叙述文档仍用 "DeepSeek Harness" 指代本项目（fork 文档策略：避开高频冲突区的大面积替换；产品面已全部改名）
