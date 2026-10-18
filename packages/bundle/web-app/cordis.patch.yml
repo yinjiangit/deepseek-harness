@@ -332,9 +332,9 @@
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
 
-    # AlphaDesk occupants for the generic sidebar and conversation brand slots.
-    - id: ui-brand-alphadesk
-      name: '@deepseek-ai/dsh-client-ui-brand-alphadesk'
+    # Official occupants for the generic sidebar and conversation brand slots.
+    - id: ui-brand-official
+      name: '@deepseek-ai/dsh-client-ui-brand-official'
 
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'

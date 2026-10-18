@@ -8,9 +8,11 @@
 - 主色（AlphaDesk navy）：`rgb(23, 64, 113)`（light 500 档）；dark 主题强调色 `rgb(126, 161, 216)` 起。
 - 点缀金：`rgb(164, 128, 56)`（light）/ `rgb(196, 165, 94)`（dark），CSS 变量 `--dsh-brand-accent`。
 - 品牌字体：平台系统字体栈（不再使用 Montserrat）。
-- 品牌位由自有插件 `packages/client/ui-brand-alphadesk` 提供（标记/名称/会话欢迎位/配色表），所有构建 profile 无条件注册。
+- 品牌位由上游 `packages/client/ui-brand-official` 承载（标记/名称/会话欢迎位），fork 不替换该插件。原 `ui-brand-alphadesk` 的 navy 配色表与点缀金变量已于 2026-10-19 随插件移除，界面配色回归上游默认。
 
 ## 阶段一：Web 端（已完成，2026-10-18）
+
+2026-10-19 移除 `ui-brand-alphadesk` 插件：品牌位回归上游 `ui-brand-official`，产品改名（标题/图标/locale/资产）全部保留。
 
 上游同步重放顺序：先恢复本清单新增文件（永不冲突），再核对下列修改点。
 
@@ -18,15 +20,12 @@
 
 | 路径 | 内容 |
 |---|---|
-| `packages/client/ui-brand-alphadesk/` | AlphaDesk 品牌插件包：侧栏 mark/name、会话欢迎位 mark、navy 配色表（覆盖 `--dsw-static-deepseek-*` 尺度与 `--dsw-font-family-brand`）、单测、双语 README |
 | `FORK.md` | 本清单 |
 
 ### 修改（同步时逐条重放）
 
 | 路径 | 改动 |
 |---|---|
-| `packages/bundle/web-app/cordis.patch.yml` | 花名册行 `ui-brand-official` → `ui-brand-alphadesk`（含注释） |
-| `packages/bundle/web-app/package.json` | dependencies 中 `…ui-brand-official` → `…ui-brand-alphadesk` |
 | `apps/web/index.html` | `<title>` → `AlphaDesk` |
 | `apps/web/vite.config.ts` | `DEFAULT_CLIENT_TITLE` → `'AlphaDesk'`；`transformIndexHtml` 的替换字面量同步改为 `<title>AlphaDesk</title>` |
 | `apps/web/public/manifest.webmanifest` | `name`/`short_name` → `AlphaDesk` |
@@ -35,9 +34,6 @@
 | `packages/client/locale/src/locales/en.ts` | `brand.localBuild` → `AlphaDesk Local Build` |
 | `packages/client/locale/src/locales/zh.ts` | `brand.localBuild` → `AlphaDesk 本地构建` |
 | `packages/client/ui-conversation/src/client/locales.ts` | `hero.headline`：zh `严谨专业 · 行稳致远`、en `Precision and Discipline` |
-| `scripts/verify-package-readme-model-experience.ts` | 新增 `packages/client/ui-brand-alphadesk` 分类行（kind `none`） |
-| `tsconfig.base.json` | paths 新增 `@deepseek-ai/dsh-client-ui-brand-alphadesk` → `./packages/client/ui-brand-alphadesk/src` |
-| `tsconfig.client.json` | references 新增 `{ "path": "./packages/client/ui-brand-alphadesk" }` |
 | `scripts/verify-repository-references.ts` | `excludedPrefixes` 增加 `python/sdk/uv.lock`（生成 lockfile 的哈希与本机 git 对象前缀撞车的误报，与 `vendor/` 同理豁免） |
 | `.gitignore` | 忽略 `.agents/skills/maintain-dsh-fork/`（本机技能工具的项目级镜像，内含嵌套 dsh-plugin-guide git 克隆，不进版本库；正本在 `~/.zcode/skills/maintain-dsh-fork`，两处随每次「更新技能」同步）与 `skill-dist/`（技能包产物目录：只保留最新 `maintain-dsh-fork-v<version>.zip`，二进制不进版本库；打包与版本约定见该技能 SKILL.md「技能自更新」第 4 步） |
 | `scripts/verify-md-links.ts` | `markdownLinkSourcePaths` 排除谓词跳过 `.agents/skills/maintain-dsh-fork/`（镜像语料的相对链接在其源仓库解析） |
@@ -47,11 +43,10 @@
 | `packages/client/ui-sidebar/tests/sidebar-root.client.spec.tsx` | `DSH Local Build` 断言 → `AlphaDesk Local Build`（3 处） |
 | `packages/client/ui-sidebar/tests/__snapshots__/sidebar-snapshot.client.spec.tsx.snap` | 快照文案英中两处同步 |
 | `packages/client/ui-conversation/tests/skeleton.client.spec.tsx` | hero 口号断言英中同步（3+1 处） |
-| `packages/client/ui-brand-alphadesk/README.i18n.yaml` | 编辑双语 README 后用 `pnpm run verify-translation-pairing --write packages/client/ui-brand-alphadesk/README.md` 重录 |
 
 ### 同步后最小检查
 
-`pnpm install` → `pnpm run typecheck` → `pnpm --filter @deepseek-ai/dsh-client-ui-brand-alphadesk test`（或在根 `pnpm run test -t alphadesk`）→ `pnpm run build:artifacts` → 起一次 `pnpm dsh web` 目检品牌位与配色。
+`pnpm install` → `pnpm run typecheck` → `pnpm run test -t sidebar` → `pnpm run build:artifacts` → 起一次 `pnpm dsh web` 目检品牌位与配色。
 
 ### 常用命令（本机）
 
@@ -84,7 +79,7 @@
 | `apps/cli/src/{args,plugin}.ts` + `docs/cli-help*.md` | CLI 帮助/徽章产品名 → AlphaDesk；`docs/cli-help*.md` 由 `pnpm run gen-cli-help` 重生成 |
 | `packages/client/ui-settings-account/src/client/locales{.ts,/onboarding.ts}` | 桌面引导/账号页产品名 → AlphaDesk |
 | `packages/context/harness-dev-context/src/index.ts` | 模型可见 runtime-context 提示中的产品名 → AlphaDesk（模型可见 ⟺ 已记日志；其 spec 与 web 期望同 PR 更新） |
-| 测试期望 | `apps/desktop/tests/**`（expected JSON/txt + 快照 `-u`）、`apps/web/tests/expected/**`、`apps/web/tests/{scaffold,assembled-boot}.ts`、`fixtures/assembled-remote.fixture.json`、`built-boot.expected.e2e.ts`（品牌位断言改为 alphadesk 全 profile 生效）机械同步 |
+| 测试期望 | `apps/desktop/tests/**`（expected JSON/txt + 快照 `-u`）、`apps/web/tests/expected/**`、`apps/web/tests/{scaffold,assembled-boot}.ts`、`fixtures/assembled-remote.fixture.json`、`built-boot.expected.e2e.ts`（品牌位断言保留上游 official/local 分支，仅 locale 文案随改名）机械同步 |
 
 ### 阶段二验证记录（2026-10-18）
 
