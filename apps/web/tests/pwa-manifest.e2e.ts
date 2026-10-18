@@ -14,8 +14,8 @@ it('ships install metadata with the built web application', async () => {
   // so only an absent `id`, which defaults to the resolved `start_url`, gives
   // each mount its own identity. `public-mount.e2e.ts` reads the resolved form.
   expect(manifest).toEqual({
-    name: 'DeepSeek Harness',
-    short_name: 'DSH',
+    name: 'AlphaDesk',
+    short_name: 'AlphaDesk',
     start_url: './',
     scope: './',
     display: 'fullscreen',
@@ -35,7 +35,7 @@ it('ships fixed-color favicons selected by document media queries', async () => 
   const light = await readFile(join(DIST_ROOT, 'favicon.svg'), 'utf8')
   const dark = await readFile(join(DIST_ROOT, 'favicon-dark.svg'), 'utf8')
   expect(light).not.toContain('<style>')
-  expect(light).toContain('fill="#000"')
-  expect(dark).toContain('fill="#fff"')
-  expect(dark.replace('fill="#fff"', 'fill="#000"')).toBe(light)
+  expect(light).toContain('stroke="#174071"')
+  expect(dark).toContain('stroke="#9CB4D8"')
+  expect(dark.replace('stroke="#9CB4D8"', 'stroke="#174071"')).toBe(light)
 })

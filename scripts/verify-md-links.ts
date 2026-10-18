@@ -31,11 +31,14 @@ const PATTERNS = [
 /**
  * Discover authored Markdown sources, deduplicating symlinks.
  * Archived notes are excluded as sources, but links to them remain checked.
+ * The fork-local maintain-dsh-fork skill mirrors external corpus clones whose
+ * relative links resolve inside their source repositories, not here.
  * @param scanRoot - absolute repository root; pass the same root to findViolations for matching diagnostics.
  * @returns forward-slash source paths relative to scanRoot.
  */
 export function markdownLinkSourcePaths(scanRoot: string = root): string[] {
-  return uniqueRepoFiles(scanRoot, PATTERNS, isArchivedAgentNotePath)
+  return uniqueRepoFiles(scanRoot, PATTERNS,
+    path => isArchivedAgentNotePath(path) || path.startsWith('.agents/skills/maintain-dsh-fork/'))
     .map(file => relative(scanRoot, file.abs).replaceAll('\\', '/'))
 }
 
