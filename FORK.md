@@ -94,6 +94,37 @@
 |---|---|
 | `pnpm-workspace.yaml` | 末尾追加 `verifyDepsBeforeRun: false`。366 个 workspace 项目下，`pnpm run` 前的隐式 install 实测耗时 10 分 43 秒，且掩盖 lockfile 与 node_modules 的漂移；改为显式 `pnpm install`（换依赖后必须手动执行）。上游同步时重放该键。 |
 
+## Windows 打包环境（本机，2026-10-21）
+
+运行 `package:desktop:win:x64:unsigned` 前设置下列环境；它们不写进仓库配置，因为只适用于本机（Git Bash 的 tar 语义、国内镜像可达性）。
+
+| 设置 | 原因 |
+|---|---|
+| `PATH="/c/WINDOWS/system32:$PATH"` | `apps/desktop/scripts/prepare-package-set.ts:91` 用 `tar -xOzf <绝对路径>` 读取 tarball 清单。Git Bash 的 GNU tar 1.35 把 `C:` 解释为远程主机（`tar (child): Cannot connect to C: resolve failed`），Windows 自带的 bsdtar 3.8 正常。把 System32 前置让 `tar` 解析到 bsdtar，无需改上游源码。 |
+| `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` | 直连 GitHub Releases 不可达；`@electron/get` 读取该变量。首次下载 148 MB 实测约 31 分钟。 |
+| `ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/` | electron-builder 的 NSIS 等二进制同理。 |
+| `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` | 本机 pnpm 由 corepack 提供。 |
+
+已知环境限制（非代码缺陷）：`scripts/primary-runtime/prepare.ts:263` 的 Python 冒烟检查用硬编码 120 秒超时；本机 `import pandas` 冷启动约 60 秒、热缓存约 40 秒，三项连续调用逼近上限，可能以 `ETIMEDOUT` 失败。失败只发生在验证步骤，payload 资源此前已就绪；重跑前先手动预热 runtime 的 Python（连续执行两次导入）可提高通过率。
+
+### 阻塞：Electron 44.7.0 在本机无法写文件（2026-10-21）
+
+本机 Electron 44.7.0 以 `ELECTRON_RUN_AS_NODE=1` 运行时不具备写权限：`fs.mkdirSync` 与 `fs.writeFileSync` 对 `%TEMP%` 下任意路径都返回 `EPERM`，读操作正常。同一台机器上用普通 Node 24.18 执行相同调用成功，因此这不是路径、权限或杀软问题（Defender 实时保护处于关闭状态），也不是工具沙箱。
+
+失败点是 `apps/desktop/scripts/prepare-dsh.ts` 的 `runtime:reset` 之后：它用 Electron 作为 Node 运行器执行 runtime 里的 pnpm（`--config.store-dir=<临时目录>/store`），pnpm 建 `store/v11` 时即报 `EPERM`。前面三个阶段在本机已能完整通过：`build:official`、`release:pack`（345 个 dsh tarball）、`prepare:runtime`、`prepare:packages`。
+
+复现与判定：
+
+```sh
+# 失败
+ELECTRON_RUN_AS_NODE=1 <runtime>/electron/electron.exe -e \
+  "require('fs').mkdirSync(process.argv[1],{recursive:true})" "$TEMP/x"
+# 成功
+node -e "require('fs').mkdirSync(process.argv[1],{recursive:true})" "$TEMP/x"
+```
+
+未验证的规避方向（都需要独立环境确认，不宜在 fork 上直接改上游脚本）：在能正常写文件的 Windows（非 10.0.26340 预览版）上打包；或升级 `electron` 到已修复该行为的版本后重跑。安装器产物在本机因此无法生成。
+
 ## 已知残留（按设计保留）
 
 - `docs/**` 叙述文档仍用 "DeepSeek Harness" 指代本项目（fork 文档策略：避开高频冲突区的大面积替换；产品面已全部改名）
