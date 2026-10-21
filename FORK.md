@@ -2,17 +2,19 @@
 
 本仓库是 deepseek-harness 的私有 fork，产品身份为 **AlphaDesk**（券商场景：严肃、严谨）。本文件登记所有偏离上游的定制点；每次 `git merge` 上游 `dsh-v*` tag 后，按本清单逐条重放（见 maintain-dsh-fork 技能的 upstream-sync 工作流）。
 
-品牌规范：
+品牌规范（2026-10-22 起全部生效）：
 
-- 标志：几何大写 A + 突破横杠（双腿 `M12 40 L22.5 8 L33 40`，横杠 `M16.3 29.5 H36`，stroke 4.8，viewBox 48×48）。
+- 标志：几何大写 A + 突破横杠（双腿 `M12 40 L22.5 8 L33 40`，横杠 `M16.3 29.5 H36`，stroke 4.8，viewBox 48×48）。侧栏标记、侧栏名称、空白会话首屏标记、favicon、桌面图标共用这套几何。
 - 主色（AlphaDesk navy）：`rgb(23, 64, 113)`（light 500 档）；dark 主题强调色 `rgb(126, 161, 216)` 起。
-- 点缀金：`rgb(164, 128, 56)`（light）/ `rgb(196, 165, 94)`（dark），CSS 变量 `--dsh-brand-accent`。
+- 点缀金：`rgb(164, 128, 56)`（light）/ `rgb(196, 165, 94)`（dark），CSS 变量 `--dsh-brand-accent`，用于标志横杠。
 - 品牌字体：平台系统字体栈（不再使用 Montserrat）。
-- 品牌位由上游 `packages/client/ui-brand-official` 承载（标记/名称/会话欢迎位），fork 不替换该插件。原 `ui-brand-alphadesk` 的 navy 配色表与点缀金变量已于 2026-10-19 随插件移除，界面配色回归上游默认。
+- 承载插件：上游 `packages/client/ui-brand-official`（fork 保留包名与 bundle 行，只替换渲染内容与配色表），登记见下文「阶段三」。
+
+历史沿革：2026-10-18 阶段一曾附带自写插件 `ui-brand-alphadesk`；2026-10-19 该插件被移除、品牌位交回官方插件，但官方插件当时渲染的是上游鲸鱼与 `deepseek HARNESS` 字标，导致界面标志与产品名不一致；2026-10-22 阶段三在官方插件内完成标志与配色替换，上述规范恢复全部生效。
 
 ## 阶段一：Web 端（已完成，2026-10-18）
 
-2026-10-19 移除 `ui-brand-alphadesk` 插件：品牌位回归上游 `ui-brand-official`，产品改名（标题/图标/locale/资产）全部保留。
+产品改名（标题/图标/locale/资产）保留。品牌位的承载方式此后经历两次调整，见上方「历史沿革」与阶段三。
 
 上游同步重放顺序：先恢复本清单新增文件（永不冲突），再核对下列修改点。
 
@@ -87,6 +89,31 @@
 - `vitest run apps/desktop`：155 文件；除 5 个环境限制文件外全过（windows-cli-signals 需本机 Electron 二进制、upload-with-credentials 需 pwsh 7、windows-signature-* 签名枚举超时——均与品牌无关）；fatal-recovery/welcome-renderer 快照 `-u` 后重跑全过
 - `vitest.expected.config.ts`、`vitest.web.config.ts` built-boot、`verify-cli-help`：通过
 - 浏览器 e2e（desktop-onboarding 等）需 Playwright Chromium，本机网络受限时另行验证
+
+## 阶段三：界面品牌替换（已完成，2026-10-22）
+
+把界面里的上游鲸鱼标志与 `deepseek HARNESS` 字标换成 AlphaDesk，并恢复 navy 配色表；承载方式沿用上游 `ui-brand-official` 包，不新建包、不改 bundle 行。
+
+### 修改（同步时逐条重放）
+
+| 路径 | 改动 |
+|---|---|
+| `packages/client/ui-brand-official/src/client/Brand.tsx` | 导出 `BrandMark`/`BrandName`/`HeroMark`：48×48 A 骨架 SVG（主体 `currentColor`，横杠 `--dsh-brand-accent`），名称为 `AlphaDesk` 文本。替换上游 `OfficialBrandMark`（`FishLogo`）与 `OfficialBrandName`（`BrandWordmark`）。 |
+| `packages/client/ui-brand-official/src/client/index.ts` | 新增 `conversation.hero.brand.mark` 槽位注册；**删除上游的 `DSH_CLIENT_BUILD_PROFILE === 'official'` 门槛**——所有 profile 都注册，源码启动的 `dsh web` 也显示 AlphaDesk（上游此时回退到鲸鱼与本地构建标签）。 |
+| `packages/client/ui-brand-official/src/client/theme.ts`（新增） | 用 `ctx.effect()` 在插件生命周期内插入配色表样式标签，卸载即移除。 |
+| `packages/client/ui-brand-official/src/styles/alphadesk-theme.css`（新增） | navy 色阶就地改写上游 `--dsw-static-deepseek-*` 名称（light 500 `rgb(23,64,113)`、dark 400 `rgb(126,161,216)`），`--dsh-brand-accent` 金 `rgb(164,128,56)`/`rgb(196,165,94)`，`--dsw-font-family-brand` 跟随系统栈。 |
+| `packages/client/ui-brand-official/src/css-modules.d.ts`（新增） | `*.css?inline` 模块声明。 |
+| `packages/client/ui-brand-official/package.json` | `dsh.client.inject` 增加 `@deepseek-ai/dsh-client-ui-conversation`；devDependencies 增加同名依赖、移除不再使用的 `ui-primitives`。包名保持上游身份。 |
+| `packages/client/ui-brand-official/locale/{en,zh}.json`、`README*.md`、`README.i18n.yaml` | 文案改为 AlphaDesk，说明「所有 profile 都注册」的 fork 偏离；双语配对哈希已重录。 |
+| `apps/web/tests/built-boot.expected.e2e.ts` | 品牌断言从「按 profile 分支」改为恒定：A 骨架 `viewBox="0 0 48 48"` + `AlphaDesk` 文本，且 `AlphaDesk Local Build` 不再出现。 |
+
+### 验证记录（2026-10-22）
+
+- `vitest run packages/client/ui-brand-official`：8/8 通过（含「所有 profile 都注册」与配色表挂载/移除）。
+- `vitest --config vitest.web.config.ts built-boot`：2/2 通过。
+- `pnpm run build:artifacts`：7 门禁全过。
+- `pnpm run verify-translation-pairing`：1014 对一致。
+- 浏览器实测（`pnpm dsh web`，Playwright 截图）：侧栏 A 标志 + `AlphaDesk`，首屏 A 标志，配色表已挂载（accent `#c4a55e`、navy `#587eba`），鲸鱼与官方字标零残留。
 
 ## 构建流水线（fork 自有，2026-10-19）
 

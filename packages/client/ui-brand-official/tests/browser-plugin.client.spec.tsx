@@ -2,14 +2,17 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
-import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
+import { BrandMark, BrandName } from '../src/client/Brand.tsx'
 import { apply as hostApply } from '../src/index.ts'
 
 afterEach(() => {
   cleanup()
   vi.unstubAllEnvs()
+  for (const tag of document.head.querySelectorAll('style[data-plugin-css$="/alphadesk-theme.css"]')) tag.remove()
 })
 
 const HOLES = [
@@ -40,11 +43,14 @@ describe('official browser-brand plugin', () => {
     expect(inject).toEqual(['slots'])
   })
 
-  it('leaves every slot empty outside the official build profile', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'local')
-    const subject = await bench()
-    await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
+  it('registers the AlphaDesk brand in every build profile', async () => {
+    for (const profile of ['official', 'local', undefined]) {
+      vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', profile as string)
+      const subject = await bench()
+      await subject.ctx.plugin({ inject: [...inject], apply }).await()
+      for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(1)
+      expect(subject.slots.entries(HERO_HOLE)).toHaveLength(1)
+    }
   })
 
   it('fills declarations before or after apply and removes every occupant on teardown', async () => {
@@ -71,21 +77,42 @@ describe('official browser-brand plugin', () => {
     for (const hole of HOLES) expect(after.slots.entries(hole)).toHaveLength(1)
   })
 
-  it('leaves the conversation hero on its declaring fallback even in official builds', async () => {
+  it('fills the conversation hero mark alongside the sidebar slots', async () => {
     vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(subject.slots.entries(HERO_HOLE)).toHaveLength(0)
+    expect(subject.slots.entries(HERO_HOLE)).toHaveLength(1)
   })
 
-  it('renders the official name independently from both requested mark sizes', () => {
-    const name = render(<OfficialBrandName />)
-    expect(name.container.querySelector('svg')?.getAttribute('viewBox')).toBe('26 0 156 24')
+  it('renders the AlphaDesk name independently from both requested mark sizes', () => {
+    const name = render(<BrandName />)
+    expect(name.container.textContent).toBe('AlphaDesk')
     name.unmount()
 
-    const mark = render(<OfficialBrandMark size={34} />)
+    const mark = render(<BrandMark size={34} />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('34')
-    mark.rerender(<OfficialBrandMark size={24} />)
+    mark.rerender(<BrandMark size={24} />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('24')
+  })
+
+  it('mounts and removes the palette stylesheet with the plugin lifetime', async () => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
+    const subject = await bench()
+    const fiber = subject.ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const selector = 'style[data-plugin-css$="/alphadesk-theme.css"]'
+    expect(document.head.querySelector(selector)?.getAttribute('data-plugin')).toBe('@deepseek-ai/dsh-client-ui-brand-official')
+
+    await fiber.dispose()
+    expect(document.head.querySelector(selector)).toBeNull()
+  })
+
+  it('ships the AlphaDesk navy scale and accent in the palette sheet', () => {
+    const css = readFileSync(join(process.cwd(), 'packages/client/ui-brand-official/src/styles/alphadesk-theme.css'), 'utf8')
+    expect(css).toContain('--dsh-brand-accent: rgb(164, 128, 56)')
+    expect(css).toContain('--dsw-static-deepseek-500: rgb(23, 64, 113)')
+    expect(css).toContain('body[data-ds-dark-theme]')
+    expect(css).toContain('--dsh-brand-accent: rgb(196, 165, 94)')
+    expect(css).toContain('--dsw-font-family-brand: var(--dsh-font-family-text')
   })
 })

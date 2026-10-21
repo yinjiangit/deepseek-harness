@@ -3,41 +3,41 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/client/ui-brand-official/README.md
 /:
-  en: a031cd88e552dc89
-  zh: 76c1af2393cb6983
+  en: 4550a9ddeae1225c
+  zh: 03b93b2451992fa5
 /deepseek-ai-dsh-client-ui-brand-official:
   en: 7cee1be833cea807
   zh: 9953e1b38cb23d34
 /deepseek-ai-dsh-client-ui-brand-official/summary:
-  en: cb6bf0a4eabd271b
-  zh: 181cf091ff44c194
+  en: b985c089c01adb1c
+  zh: 9232718daf470cb9
 /deepseek-ai-dsh-client-ui-brand-official/table-of-contents:
   en: d152484eb41ac6b4
   zh: 09388d293f9be9cb
 /deepseek-ai-dsh-client-ui-brand-official/use-this-package:
-  en: 716dc268f98996db
-  zh: 7372a67ef81a0d5e
-/deepseek-ai-dsh-client-ui-brand-official/use-this-package/choosing-the-profile:
-  en: 3f3f96d6adf98193
-  zh: 0b8691656a8532a0
+  en: f61689a8c4a58970
+  zh: dd3f379452d263ca
+/deepseek-ai-dsh-client-ui-brand-official/use-this-package/build-profiles:
+  en: a53bdde084801fb7
+  zh: 5acf667f00eb8e88
 /deepseek-ai-dsh-client-ui-brand-official/use-this-package/replacing-the-brand:
-  en: 6a923aa630d01d65
-  zh: 5df0c24eebd9d0d0
+  en: 6f4e16d40b7b5012
+  zh: 1c72aeecd8d57333
 /deepseek-ai-dsh-client-ui-brand-official/understand-the-implementation:
-  en: 4e4aa617edd7f4ad
-  zh: ea4e2d6d4a39535e
+  en: 43e51e585a8184c8
+  zh: fba05be889bbf3a2
 /deepseek-ai-dsh-client-ui-brand-official/further-exploration:
-  en: c9ae240d8e831cc0
-  zh: a7c9170bae79824f
+  en: 1caefba3c2900a6a
+  zh: e58a99bf0cdd9c35
 /deepseek-ai-dsh-client-ui-brand-official/model-experience:
   en: 618008c7641070e7
-  zh: 7233febb4d92ccfb
+  zh: 6c920864d1bc79ce
 /deepseek-ai-dsh-client-ui-brand-official/model-experience/kv-cache-effect:
   en: ca75c51c89c2c9b0
-  zh: f57cc48a1b5cbfa9
+  zh: 2f11d43e4ee817cf
 /deepseek-ai-dsh-client-ui-brand-official/known-limitations-and-deferred-work:
-  en: 89e2b4bd095a0265
-  zh: a002f0c8a60267ad
+  en: 06dabf7c57e4dc98
+  zh: b1fbf90fb6bd1364
 /deepseek-ai-dsh-client-ui-brand-official/known-limitations-and-deferred-work/dev-note:
-  en: e67f633dc6fe7773
-  zh: 3bb0c20c93f16f98
+  en: b2c209f0dfb2e8c8
+  zh: 510dcca2f7addae7

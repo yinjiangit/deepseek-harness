@@ -1,0 +1,38 @@
+/* AlphaDesk fork palette: the securities-desk navy scale replaces the upstream
+   brand-blue values under their existing names, so every alias that reads the
+   static scale follows without an alias rewrite. This sheet loads after
+   ui-theme's design platform, and its equal-specificity `body` rules win by
+   document order. */
+body {
+  --dsh-brand-accent: rgb(164, 128, 56);
+  --dsw-static-deepseek-50: rgb(240, 244, 250);
+  --dsw-static-deepseek-100: rgb(222, 231, 242);
+  --dsw-static-deepseek-200: rgb(196, 210, 228);
+  --dsw-static-deepseek-300: rgb(158, 177, 204);
+  --dsw-static-deepseek-400: rgb(104, 133, 174);
+  --dsw-static-deepseek-450: rgb(65, 99, 147);
+  --dsw-static-deepseek-500: rgb(23, 64, 113);
+  --dsw-static-deepseek-600: rgb(18, 51, 91);
+  --dsw-static-deepseek-700-delete: rgb(15, 42, 75);
+  --dsw-static-deepseek-800: rgb(35, 49, 70);
+  --dsw-static-deepseek-900: rgb(26, 37, 54);
+  /* Written as a literal in the light alias layer upstream. */
+  --dsw-alias-brand-primary-new-colorprimary-new-color: rgb(23, 64, 113);
+  /* Brand typography follows the platform text stack instead of Montserrat. */
+  --dsw-font-family-brand: var(--dsh-font-family-text, var(--dsh-font-family-text-default));
+}
+
+body[data-ds-dark-theme] {
+  --dsh-brand-accent: rgb(196, 165, 94);
+  --dsw-static-deepseek-50: rgb(240, 244, 250);
+  --dsw-static-deepseek-100: rgb(222, 231, 242);
+  --dsw-static-deepseek-200: rgb(196, 210, 228);
+  --dsw-static-deepseek-300: rgb(151, 180, 219);
+  --dsw-static-deepseek-400: rgb(126, 161, 216);
+  --dsw-static-deepseek-450: rgb(101, 138, 197);
+  --dsw-static-deepseek-500: rgb(88, 126, 186);
+  --dsw-static-deepseek-600: rgb(18, 51, 91);
+  --dsw-static-deepseek-700-delete: rgb(15, 42, 75);
+  --dsw-static-deepseek-800: rgb(32, 45, 66);
+  --dsw-static-deepseek-900: rgb(24, 34, 50);
+}
