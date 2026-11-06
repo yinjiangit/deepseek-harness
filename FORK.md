@@ -74,14 +74,14 @@
 | `apps/desktop/scripts/{package-macos,package-target,smoke-packaged-runtime,verify-retained-desktop,development-app}.ts(mjs)` | 产物路径/Bundle 名 → `AlphaDesk.app/.exe`；`CFBundleURLName` → AlphaDesk |
 | `apps/desktop/scripts/command-path.ps1` | 注册表键 → `Software\AlphaDesk\Command`；互斥锁 → `AlphaDesk.Command` |
 | `apps/desktop/scripts/render-tray-icon.ts` | tray 放大锚点 → `(512,512)`（跟随新标志几何） |
-| `apps/desktop/installer/strings.nsh` + `extract-report.h` | NSIS 双语产品名、提取失败报告 → AlphaDesk |
+| `apps/desktop/installer/locales/*.json`（8 语言，`strings` + `uninstaller` 字典）+ `extract-report.h` | NSIS 产品名、提取失败报告 → AlphaDesk。0.2.2-rc.1 起上游删除 `strings.nsh`，文案迁入本目录 JSON（经 `scripts/installer-locales.mjs` 生成编译输入）；fork 在全部 8 个语言文件里做同样的产品名替换 |
 | `apps/desktop/cli/dsh`、`dsh.cmd`、`electron-builder.config.d.mts` | 启动器可执行名 → `AlphaDesk(.exe)`；d.mts 协议类型注释同步 |
 | `apps/desktop/renderer/welcome.css` | `--dsw-font-family-brand` 去 Montserrat，跟随系统栈 |
 | `apps/desktop/resources/`、`installer/assets/`、`renderer/assets/welcome-brand.svg` | 全部品牌二进制/SVG 用生成器重制 |
 | `apps/cli/src/{args,plugin}.ts` + `docs/cli-help*.md` | CLI 帮助/徽章产品名 → AlphaDesk；`docs/cli-help*.md` 由 `pnpm run gen-cli-help` 重生成 |
 | `packages/client/ui-settings-account/src/client/locales{.ts,/onboarding.ts}` | 桌面引导/账号页产品名 → AlphaDesk |
 | `packages/context/harness-dev-context/src/index.ts` | 模型可见 runtime-context 提示中的产品名 → AlphaDesk（模型可见 ⟺ 已记日志；其 spec 与 web 期望同 PR 更新） |
-| 测试期望 | `apps/desktop/tests/**`（expected JSON/txt + 快照 `-u`）、`apps/web/tests/expected/**`、`apps/web/tests/{scaffold,assembled-boot}.ts`、`fixtures/assembled-remote.fixture.json`、`built-boot.expected.e2e.ts`（品牌位断言保留上游 official/local 分支，仅 locale 文案随改名）机械同步 |
+| 测试期望 | `apps/desktop/tests/**`（expected JSON/txt + 快照 `-u`；含 `expected/application-menu-*.json` 与 `expected/fatal-address-in-use-*.txt`，后者 0.2.2-rc.1 起新增「诊断报告未能保存」行）、`apps/web/tests/expected/**`、`apps/web/tests/{scaffold,assembled-boot}.ts`、`fixtures/assembled-remote.fixture.json`、`built-boot.expected.e2e.ts`（品牌位断言保留上游 official/local 分支，仅 locale 文案随改名）机械同步 |
 
 ### 阶段二验证记录（2026-10-18）
 
