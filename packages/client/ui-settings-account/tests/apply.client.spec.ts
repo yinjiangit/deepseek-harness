@@ -22,8 +22,10 @@ import type { AccountPlatformHostInjected } from '../src/client/AccountPlatformH
 import { AccountQuotaNotice } from '../src/client/AccountQuotaNotice.tsx'
 import type { AccountQuotaNoticeInjected } from '../src/client/AccountQuotaNotice.tsx'
 
-const it = createClientTest({ roster: webApp })
-const withoutAccountAccess = createClientTest({ roster: webApp }, { access: action => action !== 'account/watch' })
+// AlphaDesk ships no account surface, so the Web-app roster no longer mounts this plugin.
+// The package keeps its coverage through the local-apply specs in this directory.
+const it = createClientTest({ roster: webApp }).skip
+const withoutAccountAccess = createClientTest({ roster: webApp }, { access: action => action !== 'account/watch' }).skip
 const SELF = '@deepseek-ai/dsh-client-ui-settings-account'
 const view: AccountView = {
   status: 'signed-out', attempt: null,

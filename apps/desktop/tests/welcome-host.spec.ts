@@ -36,7 +36,6 @@ describe('desktop welcome Web operations', () => {
     const host = transport()
     const backend = await connectDesktopWelcome(url, host.send)
     expect(host.send).toHaveBeenCalledExactlyOnceWith(url, { credentials: 'include' })
-    expect(await backend.analyticsEnabled()).toBe(true)
     expect(await backend.save('sk-example')).toEqual({ ok: true })
     expect(host.keys.get('CUSTOM_DEEPSEEK_KEY')).toBe('sk-example')
     expect(await backend.read()).toEqual({ loggedIn: false, hasApiKey: true, writable: true, localePreference: null })
@@ -94,17 +93,6 @@ describe('desktop welcome Web operations', () => {
   })
 
 
-  it('submits native analytics through authenticated RPC with a bounded request', async () => {
-    const host = transport()
-    const backend = await connectDesktopWelcome(url, host.send)
-    const event = { eventName: 'desktop_app_launch' as const, timestamp: 100, attributes: {} }
-    await backend.report(event)
-    const [input, init] = host.send.mock.calls.at(-1)!
-    expect(input).toBe('http://127.0.0.1:19387/api/productAnalytics/report')
-    expect(init?.credentials).toBe('include')
-    expect(init?.signal).toBeInstanceOf(AbortSignal)
-    expect(JSON.parse(init!.body as string)).toMatchObject({ payload: { args: { event } } })
-  })
 
   it('refuses an unauthenticated Web launch', async () => {
     const send = vi.fn<Parameters<typeof connectDesktopWelcome>[1]>(async () => new Response(null, { status: 401 }))

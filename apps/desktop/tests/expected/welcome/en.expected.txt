@@ -2,5 +2,4 @@ AlphaDesk
 AlphaDesk
 Welcome to AlphaDesk
 Precision and discipline for the desk.
-Sign in
 Add API Key

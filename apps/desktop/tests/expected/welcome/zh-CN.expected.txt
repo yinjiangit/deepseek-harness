@@ -2,5 +2,4 @@ AlphaDesk
 AlphaDesk
 欢迎使用 AlphaDesk
 严谨专业，行稳致远
-登录
 添加 API Key

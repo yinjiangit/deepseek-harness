@@ -44,7 +44,6 @@ const operations = {
   takeNotice: async () => undefined,
   startSignIn: async () => ({ links: { usageUrl: 'http://localhost/usage', topUpUrl: 'http://localhost/top_up' }, status: 'signed-out' as const, attempt: null }),
   cancelSignIn: async () => ({ links: { usageUrl: 'http://localhost/usage', topUpUrl: 'http://localhost/top_up' }, status: 'signed-out' as const, attempt: null }),
-  copySignInLink: async () => undefined,
   saveApiKey: () => Promise.resolve({ ok: true as const }),
   skip: () => Promise.resolve(),
 }
@@ -116,9 +115,8 @@ describe('desktop welcome window', () => {
     electron.create.mockReturnValue(window)
     const saveApiKey = vi.fn(operations.saveApiKey)
     const skip = vi.fn(operations.skip)
-    const copySignInLink = vi.fn(operations.copySignInLink)
     const takeNotice = vi.fn(async () => 'session-expired' as const)
-    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, saveApiKey, skip, copySignInLink, takeNotice })
+    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, saveApiKey, skip, takeNotice })
     const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
     const take = electron.handlers.get(WELCOME_IPC.takeNotice)!
     await expect(take({ ...own, senderFrame: {} })).rejects.toThrow('unowned frame')
@@ -133,11 +131,6 @@ describe('desktop welcome window', () => {
     expect(await save(own, 'sk-test')).toEqual({ ok: true })
     await electron.handlers.get(WELCOME_IPC.skip)!(own)
     expect(skip).toHaveBeenCalledOnce()
-    const copy = electron.handlers.get(WELCOME_IPC.copyLink)!
-    await expect(copy({ ...own, senderFrame: {} }, 'attempt')).rejects.toThrow('unowned frame')
-    await expect(copy(own, 42)).rejects.toThrow('invalid attempt')
-    await copy(own, 'attempt')
-    expect(copySignInLink).toHaveBeenCalledExactlyOnceWith('attempt')
     window.once.mock.calls[0]![1]()
     expect(electron.handlers.size).toBe(0)
   })
@@ -162,20 +155,15 @@ describe('desktop welcome window', () => {
     const previous = createWindow()
     const current = createWindow()
     electron.create.mockReturnValueOnce(previous).mockReturnValueOnce(current)
-    const previousStart = vi.fn(operations.startSignIn)
-    const currentStart = vi.fn(operations.startSignIn)
-    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, startSignIn: previousStart })
-    const previousHandler = electron.handlers.get(WELCOME_IPC.start)!
+    await openWelcomeWindow(resolveDesktopLocale('en'), operations)
+    const previousHandler = electron.handlers.get(WELCOME_IPC.takeNotice)!
     const previousSender = { sender: previous.webContents, senderFrame: previous.webContents.mainFrame }
-    await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, startSignIn: currentStart })
-    const currentHandler = electron.handlers.get(WELCOME_IPC.start)!
+    await openWelcomeWindow(resolveDesktopLocale('en'), operations)
+    const currentHandler = electron.handlers.get(WELCOME_IPC.takeNotice)!
     await expect(previousHandler(previousSender)).rejects.toThrow('unowned frame')
     await expect(currentHandler(previousSender)).rejects.toThrow('unowned frame')
     previous.once.mock.calls[0]![1]()
-    expect(electron.handlers.get(WELCOME_IPC.start)).toBe(currentHandler)
-    await currentHandler({ sender: current.webContents, senderFrame: current.webContents.mainFrame })
-    expect(currentStart).toHaveBeenCalledOnce()
-    expect(previousStart).not.toHaveBeenCalled()
+    expect(electron.handlers.get(WELCOME_IPC.takeNotice)).toBe(currentHandler)
     current.once.mock.calls[0]![1]()
     expect(electron.handlers.size).toBe(0)
   })
@@ -186,25 +174,4 @@ describe('desktop welcome window', () => {
     expect(needsWelcome({ loggedIn: false, hasApiKey: true })).toBe(false)
     expect(needsWelcome({ loggedIn: true, hasApiKey: true })).toBe(false)
   })
-})
-
-it('accepts only permitted event fields and reads the current policy over IPC', async () => {
-  const window = createWindow()
-  electron.create.mockReturnValue(window)
-  const analytics = vi.fn(async () => {})
-  let enabled = true
-  await openWelcomeWindow(resolveDesktopLocale('en'), { ...operations, analytics, analyticsEnabled: async () => enabled })
-  const own = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
-  const policy = electron.handlers.get(WELCOME_IPC.analyticsEnabled)!
-  expect(await policy(own)).toBe(true)
-  enabled = false
-  expect(await policy(own)).toBe(false)
-  const report = electron.handlers.get(WELCOME_IPC.analytics)!
-  await report(own, 'auth_page_click', { button_name: 'api-key' })
-  expect(analytics).toHaveBeenLastCalledWith('auth_page_click', { button_name: 'api-key' })
-  await expect(report(own, 'auth_page_click', { button_name: 'api-key', token: 'private' })).rejects.toThrow('invalid analytics')
-  await expect(report(own, 'desktop_app_launch', {})).rejects.toThrow('invalid analytics')
-  await expect(report(own, 'auth_page_view', null)).rejects.toThrow('invalid analytics')
-  await report(own, 'api_key_save_click', {})
-  expect(analytics).toHaveBeenLastCalledWith('api_key_save_click', {})
 })
