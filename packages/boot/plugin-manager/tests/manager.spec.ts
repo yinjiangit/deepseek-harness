@@ -15,7 +15,21 @@ import {
   reconcileProfilePatches, PluginPackages, readPluginMeta, getDshRuntimeVersion,
   type ProfileContext, type RuntimeResolution,
 } from '@deepseek-ai/dsh-app-boot'
-import { OPTIONAL_BUNDLES, OFFICIAL_ON_DEMAND_CATALOG } from '@deepseek-ai/dsh-official-bundles'
+import { OPTIONAL_BUNDLES, type OfficialBundleCatalogEntry } from '@deepseek-ai/dsh-official-bundles'
+
+const { FIXTURE_CATALOG_ENTRY } = vi.hoisted(() => {
+  /** Synthetic catalog entry; the AlphaDesk installation ships no on-demand bundles. */
+  const entry = {
+    packageName: '@deepseek-ai/dsh-subagent-claude-code',
+    meta: { title: { en: 'Claude Code subagent', zh: 'Claude Code 子智能体' }, description: { en: 'Delegate one task.', zh: '委派任务。' }, icon: 'data:image/svg+xml;base64,PHN2Zy8+' },
+  }
+  return { FIXTURE_CATALOG_ENTRY: entry as OfficialBundleCatalogEntry }
+})
+
+vi.mock('@deepseek-ai/dsh-official-bundles', async importOriginal => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  OFFICIAL_ON_DEMAND_CATALOG: [FIXTURE_CATALOG_ENTRY],
+}))
 import PluginManager, { type Config, type PluginChange, type PluginInstallLogChunk, type PluginInstallProgress, type PluginInstallRequestId } from '../src/index.ts'
 import type { PluginEntryId, PluginOperation } from '../src/types.ts'
 import Hmr from '@deepseek-ai/dsh-hmr'
@@ -1806,7 +1820,7 @@ it('lists absent Official entries offline without resolving their packages or co
   const registry = vi.spyOn(operations, 'viewProfilePackage')
   onTestFinished(() => { resolve.mockRestore(); registry.mockRestore() })
   const bundles = await manager.listBundles()
-  for (const entry of OFFICIAL_ON_DEMAND_CATALOG) {
+  for (const entry of [FIXTURE_CATALOG_ENTRY]) {
     expect(bundles.filter(bundle => bundle.name === entry.packageName)).toHaveLength(1)
     expect(bundles.filter(bundle => bundle.name === entry.packageName)).toMatchObject([{
       name: entry.packageName, official: true, availability: 'missing', enabled: false, installed: false, optional: false,
@@ -1822,7 +1836,7 @@ it('lists absent Official entries offline without resolving their packages or co
 })
 
 it.each([false, true])('applies offline platform admission to an uninstalled Official bundle (selected=%s)', async (selected) => {
-  const entry = OFFICIAL_ON_DEMAND_CATALOG[0]!
+  const entry = FIXTURE_CATALOG_ENTRY
   const previous = Object.getOwnPropertyDescriptor(entry, 'platforms')
   onTestFinished(() => {
     if (previous === undefined) Reflect.deleteProperty(entry, 'platforms')
@@ -1847,7 +1861,7 @@ it.each([false, true])('applies offline platform admission to an uninstalled Off
 
 it('distinguishes an unreadable profile dependency from an absent catalog selection', async () => {
   const { manager, dir, profile } = await fixture()
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const manifest = readProfileManifest('test', dir)
   manifest.dependencies = { ...manifest.dependencies, [name]: '1.0.0' }
   writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
@@ -1862,7 +1876,7 @@ it('distinguishes an unreadable profile dependency from an absent catalog select
 
 it('uses the generic exact installer and keeps an Official entry through on, off, and removal', async () => {
   const { manager, dir, bundle, profile } = await fixture()
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const version = getDshRuntimeVersion()
   const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockImplementation(async (_dir, args) => {
     const manifest = readProfileManifest('test', dir)
@@ -1892,7 +1906,7 @@ it('uses the generic exact installer and keeps an Official entry through on, off
 
 it('restores dependency and selection after an exact version is unavailable', async () => {
   const { manager, dir, bundle, profile } = await fixture()
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   bundle(name, [], profile.home)
   const manifest = readProfileManifest('test', dir)
   manifest.dependencies = { ...manifest.dependencies, [name]: '1.0.0' }
@@ -1910,7 +1924,7 @@ it('restores dependency and selection after an exact version is unavailable', as
 
 it('retains a successful installation and saved selection when Official activation fails', async () => {
   const { manager, dir, bundle, profile } = await fixture()
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockImplementation(async () => {
     bundle(name, [{ id: 'official-probe', name: './plugin.mjs', config: { fail: true } }], profile.home)
     const manifest = readProfileManifest('test', dir)
@@ -1926,7 +1940,7 @@ it('retains a successful installation and saved selection when Official activati
 
 it('reports and removes a saved Official selection whose dependency is absent', async () => {
   const { manager, dir } = await fixture()
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const manifest = readProfileManifest('test', dir)
   manifest.dsh!.profile!.bundles!.push(name)
   writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
@@ -1943,7 +1957,7 @@ it('reports and removes a saved Official selection whose dependency is absent', 
 
 it('keeps a broken installation-carried catalog entry visible with offline metadata', async () => {
   const { manager, profile } = await fixture()
-  const entry = OFFICIAL_ON_DEMAND_CATALOG[0]!
+  const entry = FIXTURE_CATALOG_ENTRY
   writeFileSync(profile.installAnchor, JSON.stringify({ name: 'installation', dependencies: { [entry.packageName]: '1.0.0' } }))
   const broken = join(profile.home, 'node_modules', entry.packageName)
   mkdirSync(broken, { recursive: true })
@@ -1957,7 +1971,7 @@ it('keeps a broken installation-carried catalog entry visible with offline metad
 
 it('offers checkout links beside stale registry and other-checkout dependencies at the same version', async () => {
   const { manager, dir, bundle, profile } = await fixture('live', false, undefined, {}, undefined, undefined, true)
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const version = getDshRuntimeVersion()
   const source = join(profile.home, 'packages', 'native', 'provider')
   mkdirSync(join(source, 'lib'), { recursive: true })
@@ -1981,7 +1995,7 @@ it('offers checkout links beside stale registry and other-checkout dependencies 
 
 it.each(['absent', 'bundle', 'not-bundle', 'unreadable'])('keeps a missing source bundle visible when its installed copy is %s', async (state) => {
   const { manager, dir, bundle, profile } = await fixture('live', false, undefined, {}, undefined, undefined, true)
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   if (state !== 'absent') {
     bundle(name, [], profile.home)
     const manifest = readProfileManifest('test', dir)

@@ -302,7 +302,7 @@ export function selectBundleDependencies(options: {
   readonly platform: PlatformConstraint
 }): BundleSelection {
   const { entries, packages, platform } = options
-  if (entries.length === 0) throw new Error('the Official catalog has no on-demand entries')
+  // The AlphaDesk on-demand catalog is empty; an empty selection serves nothing.
   if (new Set(entries).size !== entries.length) throw new Error('Official catalog entries must be distinct')
   const selected = new Map<string, WorkspacePackage>()
   const parents = new Map<string, string>()

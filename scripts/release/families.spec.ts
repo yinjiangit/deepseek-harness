@@ -269,11 +269,6 @@ describe('release families', () => {
     expect(plan.droppedPeerEdges).toEqual([])
   })
 
-  it('rejects an advertised provider missing from the public release family', () => {
-    expect(() => releaseFamily('dsh').publishOrder([member('apps/cli', '@deepseek-ai/dsh')]))
-      .toThrow('Official catalog prerequisite')
-  })
-
   it('keeps catalog prerequisites ahead of a dsh peer declaration', () => {
     const dsh = member('apps/cli', '@deepseek-ai/dsh')
     const providers = ON_DEMAND_BUNDLES.map(name => member(`packages/subagent/${name}`, name, {

@@ -133,7 +133,9 @@ describe('catalog and local closure', () => {
     // A vendor package keeps its own version line, so a run must not assume one shared version.
     expect(packages.get('@deepseek-ai/cordis')?.manifest.version)
       .not.toBe(packages.get('@deepseek-ai/dsh-brand')?.manifest.version)
-    expect(selection.foreignTargets).toEqual(process.platform === 'darwin' ? [] : ['@deepseek-ai/dsh-experimental-cua-macos'])
+    // The AlphaDesk catalog is empty, so the closure is empty on every platform.
+    expect(selection.members).toEqual([])
+    expect(selection.foreignTargets).toEqual([])
   })
 
   it('follows install, optional, and required peer edges but not optional peers', () => {
@@ -176,9 +178,8 @@ describe('catalog and local closure', () => {
       .toThrow(/cannot resolve workspace package @scope\/missing \(catalog entry @scope\/missing\)/u)
   })
 
-  it('rejects an empty or duplicate catalog', () => {
-    expect(() => selectBundleDependencies({ entries: [], packages: inventory(), platform: {} }))
-      .toThrow(/no on-demand entries/u)
+  it('accepts the empty fork catalog and rejects duplicates', () => {
+    expect(selectBundleDependencies({ entries: [], packages: inventory(), platform: {} }).members).toEqual([])
     expect(() => selectBundleDependencies({ entries: ['@scope/a', '@scope/a'], packages: inventory(), platform: {} }))
       .toThrow(/must be distinct/u)
   })

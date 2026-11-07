@@ -5,7 +5,21 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import { boot, getDshRuntimeVersion, initProfile, loadProfileDirectory, readProfileManifest, readProfilePatches, type ProfileContext } from '@deepseek-ai/dsh-app-boot'
-import { OFFICIAL_ON_DEMAND_CATALOG } from '@deepseek-ai/dsh-official-bundles'
+import type { OfficialBundleCatalogEntry } from '@deepseek-ai/dsh-official-bundles'
+
+const { FIXTURE_CATALOG_ENTRY } = vi.hoisted(() => {
+  /** Synthetic catalog entry; the AlphaDesk installation ships no on-demand bundles. */
+  const entry = {
+    packageName: '@deepseek-ai/dsh-subagent-claude-code',
+    meta: { title: { en: 'Claude Code subagent', zh: 'Claude Code 子智能体' }, description: { en: 'Delegate one task.', zh: '委派任务。' }, icon: 'data:image/svg+xml;base64,PHN2Zy8+' },
+  }
+  return { FIXTURE_CATALOG_ENTRY: entry as OfficialBundleCatalogEntry }
+})
+
+vi.mock('@deepseek-ai/dsh-official-bundles', async importOriginal => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  OFFICIAL_ON_DEMAND_CATALOG: [FIXTURE_CATALOG_ENTRY],
+}))
 import { remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import PluginManager, { type Config } from '../src/index.ts'
@@ -117,7 +131,7 @@ it('serves images beside a bundle document without caching and refuses other pat
 })
 
 it('reads an offered official bundle from the npm CDNs at its offered version, npmmirror first when asked', async () => {
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const version = getDshRuntimeVersion()
   const fetch = vi.fn((url: string) => Promise.resolve(url === `https://registry.npmmirror.com/${name}/${version}/files/README.md`
     ? new Response('# Official')
@@ -135,7 +149,7 @@ it('reads an offered official bundle from the npm CDNs at its offered version, n
 })
 
 it.each([undefined, { npmFileSources: [] }])('asks the CDNs in configured order unless npmmirror is asked first (%o)', async (options) => {
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const version = getDshRuntimeVersion()
   const fetch = vi.fn(() => Promise.resolve(new Response('missing', { status: 404 })))
   vi.stubGlobal('fetch', fetch)
@@ -145,7 +159,7 @@ it.each([undefined, { npmFileSources: [] }])('asks the CDNs in configured order 
 })
 
 it('shows no document for an offered bundle without a published version', async () => {
-  const name = OFFICIAL_ON_DEMAND_CATALOG[0]!.packageName
+  const name = FIXTURE_CATALOG_ENTRY.packageName
   const { manager } = await fixture()
   const list = manager.listBundles.bind(manager)
   vi.spyOn(manager, 'listBundles').mockImplementation(async () => (await list()).map(bundle => bundle.name === name

@@ -25,9 +25,6 @@ describe('profile roster', () => {
       ...bundles,
       // Rows inserted by the base and Web bundles.
       '@deepseek-ai/dsh-plugin-manager', '@deepseek-ai/dsh-host-webserver',
-      // Rows inserted by optional bundles, including grouped ones.
-      '@deepseek-ai/dsh-session-title-all-prompts-llm', '@deepseek-ai/dsh-experimental-inspector',
-      '@deepseek-ai/dsh-tool-session-query',
     ]))
     expect(new Set(roster).size).toBe(roster.length)
     expect(roster.every(name => name.startsWith('@') || !name.includes('/'))).toBe(true)

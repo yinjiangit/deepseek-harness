@@ -4,7 +4,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, uti
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ON_DEMAND_BUNDLES } from '../packages/util/official-bundles/src/index.ts'
+
+/** Synthetic admission member; the fork ships no real on-demand bundles. */
+const FIXTURE_BUNDLE = '@deepseek-ai/dsh-subagent-claude-code'
 import { generateOfficialBundleCatalog, renderOfficialBundleCatalog, syncOfficialBundleCatalog } from './gen-official-bundle-catalog.ts'
 
 import { SHIPPED_LOCALE_IDS } from './shipped-locales.ts'
@@ -23,7 +25,7 @@ function fixture(): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-official-catalog-'))
   roots.push(root)
   write(root, 'apps/cli/package.json', { name: '@deepseek-ai/dsh' })
-  for (const name of ON_DEMAND_BUNDLES) {
+  for (const name of [FIXTURE_BUNDLE]) {
     const dir = directory(name)
     write(root, `${dir}/package.json`, {
       name, type: 'module', version: '1.2.3', icon: './icon.svg', dsh: { bundle: { patch: './cordis.patch.yml' } },
@@ -50,8 +52,9 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 
 describe('Official bundle catalog generation', () => {
   it('reads package resources without evaluating native provider entries or pinning a version', () => {
-    const entries = generateOfficialBundleCatalog(fixture())
-    expect(entries.map(entry => entry.packageName)).toEqual(ON_DEMAND_BUNDLES)
+    const entries = generateOfficialBundleCatalog(fixture(), [FIXTURE_BUNDLE])
+    expect(entries.map(entry => entry.packageName)).toEqual([FIXTURE_BUNDLE])
+    expect(generateOfficialBundleCatalog(fixture())).toEqual([])
     expect(entries[0]?.meta).toEqual({
       title: { en: 'Native agent', zh: '原生智能体', ja: 'ネイティブエージェント', ...Object.fromEntries(['es', 'fr', 'de', 'ru', 'pt'].map(id => [id, 'Native agent'])) },
       description: { en: 'Delegate a task.', zh: '委派任务。', ja: 'タスクを委派します。', ...Object.fromEntries(['es', 'fr', 'de', 'ru', 'pt'].map(id => [id, 'Delegate a task.'])) },
@@ -62,98 +65,98 @@ describe('Official bundle catalog generation', () => {
 
   it.each(['private', 'not-bundle', 'missing', 'duplicate'])('rejects %s catalog membership', (kind) => {
     const root = fixture()
-    const name = ON_DEMAND_BUNDLES[0]!
+    const name = FIXTURE_BUNDLE
     if (kind === 'private') updateManifest(root, name, { private: true })
     if (kind === 'not-bundle') updateManifest(root, name, { dsh: {} })
     if (kind === 'missing') rmSync(join(root, directory(name)), { recursive: true })
     if (kind === 'duplicate') write(root, 'packages/subagent/duplicate/package.json', { name })
-    expect(() => generateOfficialBundleCatalog(root)).toThrow(/public DSH bundle|duplicate workspace/)
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])).toThrow(/public DSH bundle|duplicate workspace/)
   })
 
   it('embeds the package platform declaration and detects changes before providers are installed', () => {
     const root = fixture()
-    const name = ON_DEMAND_BUNDLES[0]!
+    const name = FIXTURE_BUNDLE
     updateManifest(root, name, { dsh: { bundle: { patch: './cordis.patch.yml', platforms: ['darwin'] } } })
-    expect(generateOfficialBundleCatalog(root)[0]?.platforms).toEqual(['darwin'])
-    syncOfficialBundleCatalog(root, false)
+    expect(generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])[0]?.platforms).toEqual(['darwin'])
+    syncOfficialBundleCatalog(root, false, [FIXTURE_BUNDLE])
     expect(readFileSync(join(root, output), 'utf8')).toContain("platforms: ['darwin']")
     updateManifest(root, name, { dsh: { bundle: { patch: './cordis.patch.yml', platforms: ['win32'] } } })
-    expect(() => { syncOfficialBundleCatalog(root, true) }).toThrow('is stale')
+    expect(() => { syncOfficialBundleCatalog(root, true, [FIXTURE_BUNDLE]) }).toThrow('is stale')
   })
 
   it('preserves default-hidden discovery before installation', () => {
     const root = fixture()
-    const name = ON_DEMAND_BUNDLES[0]!
+    const name = FIXTURE_BUNDLE
     updateManifest(root, name, { dsh: { bundle: { patch: './cordis.patch.yml', listedByDefault: false } } })
-    expect(generateOfficialBundleCatalog(root)[0]?.listedByDefault).toBe(false)
-    syncOfficialBundleCatalog(root, false)
+    expect(generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])[0]?.listedByDefault).toBe(false)
+    syncOfficialBundleCatalog(root, false, [FIXTURE_BUNDLE])
     expect(readFileSync(join(root, output), 'utf8')).toContain('listedByDefault: false')
     updateManifest(root, name, { dsh: { bundle: { patch: './cordis.patch.yml', listedByDefault: 'hidden' } } })
-    expect(() => generateOfficialBundleCatalog(root)).toThrow('listedByDefault must be a boolean')
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])).toThrow('listedByDefault must be a boolean')
   })
 
   it.each([[], ['macos'], 'darwin'].map(platforms => ({ platforms })))('rejects invalid package platform metadata $platforms', ({ platforms }) => {
     const root = fixture()
-    updateManifest(root, ON_DEMAND_BUNDLES[0]!, { dsh: { bundle: { patch: './cordis.patch.yml', platforms } } })
-    expect(() => generateOfficialBundleCatalog(root)).toThrow('dsh.bundle.platforms')
+    updateManifest(root, FIXTURE_BUNDLE, { dsh: { bundle: { patch: './cordis.patch.yml', platforms } } })
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])).toThrow('dsh.bundle.platforms')
   })
 
   it.each([false, true])('rejects an on-demand provider in the installed dependency closure (indirect=%s)', (indirect) => {
     const root = fixture()
-    const name = ON_DEMAND_BUNDLES[0]!
+    const name = FIXTURE_BUNDLE
     write(root, 'apps/cli/package.json', { name: '@deepseek-ai/dsh', dependencies: { [indirect ? '@deepseek-ai/dsh-layer' : name]: '*' } })
     if (indirect) write(root, 'packages/bundle/layer/package.json', { name: '@deepseek-ai/dsh-layer', dependencies: { [name]: '*' } })
-    expect(() => generateOfficialBundleCatalog(root)).toThrow('must not be installed by the DSH distribution')
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])).toThrow('must not be installed by the DSH distribution')
   })
 
-  it('requires distinct nonempty catalog admission', () => {
+  it('rejects duplicate catalog admission and accepts the empty fork catalog', () => {
     const root = fixture()
-    expect(() => generateOfficialBundleCatalog(root, [])).toThrow('distinct package names')
-    expect(() => generateOfficialBundleCatalog(root, [ON_DEMAND_BUNDLES[0]!, ON_DEMAND_BUNDLES[0]!])).toThrow('distinct package names')
+    expect(generateOfficialBundleCatalog(root, [])).toEqual([])
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE, FIXTURE_BUNDLE])).toThrow('distinct package names')
   })
 
   it.each(['icon', ...SHIPPED_LOCALE_IDS])('rejects missing %s metadata', (resource) => {
     const root = fixture()
-    const dir = directory(ON_DEMAND_BUNDLES[0]!)
+    const dir = directory(FIXTURE_BUNDLE)
     rmSync(join(root, dir, resource === 'icon' ? 'icon.svg' : `locale/${resource}.json`))
-    expect(() => generateOfficialBundleCatalog(root)).toThrow()
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])).toThrow()
   })
 
   it.each(SHIPPED_LOCALE_IDS)('requires explicit %s fields instead of metadata fallback text', (language) => {
     const root = fixture()
-    write(root, `${directory(ON_DEMAND_BUNDLES[0]!)}/locale/${language}.json`, { meta: { description: 'Only a description.' } })
-    expect(() => generateOfficialBundleCatalog(root)).toThrow(`explicit ${language} title and description`)
+    write(root, `${directory(FIXTURE_BUNDLE)}/locale/${language}.json`, { meta: { description: 'Only a description.' } })
+    expect(() => generateOfficialBundleCatalog(root, [FIXTURE_BUNDLE])).toThrow(`explicit ${language} title and description`)
   })
 
   it('rejects stale output when package-owned display text changes', () => {
     const root = fixture()
     rmSync(join(root, output))
-    syncOfficialBundleCatalog(root, false)
-    expect(() => { syncOfficialBundleCatalog(root, true) }).not.toThrow()
-    write(root, `${directory(ON_DEMAND_BUNDLES[0]!)}/locale/en.json`, { meta: { title: 'Changed', description: 'Delegate a task.' } })
+    syncOfficialBundleCatalog(root, false, [FIXTURE_BUNDLE])
+    expect(() => { syncOfficialBundleCatalog(root, true, [FIXTURE_BUNDLE]) }).not.toThrow()
+    write(root, `${directory(FIXTURE_BUNDLE)}/locale/en.json`, { meta: { title: 'Changed', description: 'Delegate a task.' } })
     const before = readFileSync(join(root, output), 'utf8')
-    expect(() => { syncOfficialBundleCatalog(root, true) }).toThrow('is stale')
+    expect(() => { syncOfficialBundleCatalog(root, true, [FIXTURE_BUNDLE]) }).toThrow('is stale')
     expect(readFileSync(join(root, output), 'utf8')).toBe(before)
-    syncOfficialBundleCatalog(root, false)
+    syncOfficialBundleCatalog(root, false, [FIXTURE_BUNDLE])
     expect(readFileSync(join(root, output), 'utf8')).toContain('Changed')
   })
 
   it('does not rewrite an already current catalog during explicit generation', () => {
     const root = fixture()
-    syncOfficialBundleCatalog(root, false)
+    syncOfficialBundleCatalog(root, false, [FIXTURE_BUNDLE])
     const path = join(root, output)
     const timestamp = new Date('2000-01-01T00:00:00Z')
     utimesSync(path, timestamp, timestamp)
     const before = statSync(path).mtimeMs
-    syncOfficialBundleCatalog(root, false)
+    syncOfficialBundleCatalog(root, false, [FIXTURE_BUNDLE])
     expect(statSync(path).mtimeMs).toBe(before)
-    expect(() => { syncOfficialBundleCatalog(root, true) }).not.toThrow()
+    expect(() => { syncOfficialBundleCatalog(root, true, [FIXTURE_BUNDLE]) }).not.toThrow()
   })
 
   it('rejects a missing generated catalog without recreating it during freshness checking', () => {
     const root = fixture()
     rmSync(join(root, output))
-    expect(() => { syncOfficialBundleCatalog(root, true) }).toThrow('is stale')
+    expect(() => { syncOfficialBundleCatalog(root, true, [FIXTURE_BUNDLE]) }).toThrow('is stale')
     expect(existsSync(join(root, output))).toBe(false)
   })
 })
