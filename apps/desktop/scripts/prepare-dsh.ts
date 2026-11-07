@@ -43,7 +43,11 @@ const STORE_ROOT = BUILD_PATHS.pnpmStore
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const PNPM_BUILD_STATE = BUILD_PATHS.dshPnpm
 const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
-const NODE = join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
+// The bundled standalone Node drives the profile install: hosts where Electron
+// run as Node cannot write (ELECTRON_RUN_AS_NODE EPERM) still produce the payload.
+const STANDALONE_NODE = join(RUNTIME_ROOT, 'primary-runtime', 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
+const NODE = existsSync(STANDALONE_NODE) ? STANDALONE_NODE
+  : join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
 const PNPM = join(RUNTIME_ROOT, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
 
 function manifestVersion(path: string, subject: string): string {

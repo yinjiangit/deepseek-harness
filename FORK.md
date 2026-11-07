@@ -115,6 +115,76 @@
 - `pnpm run verify-translation-pairing`：1014 对一致。
 - 浏览器实测（`pnpm dsh web`，Playwright 截图）：侧栏 A 标志 + `AlphaDesk`，首屏 A 标志，配色表已挂载（accent `#c4a55e`、navy `#587eba`），鲸鱼与官方字标零残留。
 
+## 瘦身定制（2026-11-08，commits 402fc4bdbc → 426e70c786）
+
+目标：缩小 win-x64 安装器（上游解压 ≈1GB / exe ≈400MB）。上游同步时按本节逐条重放；每条都改上游文件，rerere 已记录大部分冲突形态。
+
+### C1 压缩与语言（402fc4bdbc/36b28aba43）
+
+| 路径 | 改动 |
+|---|---|
+| `apps/desktop/scripts/electron-builder-config.mjs` | 顶层加 `compression: 'maximum'`、`electronLanguages: ['en','zh_CN']`；`CFBundleLocalizations` 8→2；删除 office asarUnpack 静态模式与 beforePack office 目录注入 |
+| `apps/desktop/scripts/windows-package-settings.mjs` | 压缩档默认 '3'→'9' |
+| `apps/desktop/installer/locales/` | 删 6 个非中英 JSON；`installer-locales.mjs` required ids → `['en_US','zh_CN']` |
+| `scripts/shipped-locales.ts` | `SHIPPED_LOCALE_IDS` → `['en','zh']` |
+| `apps/desktop/src/locale.ts` | 删 ja/es/fr/de/ru/pt 六个字典（保留 en/zh） |
+| `packages/client/locale/src/client/index.ts` | 删 `addLanguage` 循环与 6 语言字典注册（字典文件保留未导入，降低同步冲突） |
+
+### C2 Office/Python 切除（3eaecbd460，安装后 −348MB）
+
+| 路径 | 改动 |
+|---|---|
+| `apps/desktop-host/src/{office.ts,office-engine.ts,platform-session.ts}` | 删除；`index.ts`/`cli.ts` 摘除挂载与引擎解析（`cli.ts` 的 `runDesktopCli` 收窄为单参数） |
+| `apps/desktop-host/package.json` | 删 libreoffice-kit/tool-workspace-dependencies/skill-office/deepseek-account 依赖 |
+| `packages/bundle/web-app/` | patch 删 `office-to-pdf` 行 + manifest 依赖 |
+| `packages/bundle/sdk-app/` | patch 删 `workspace-dependencies`/`skill-office` 两行 + manifest 依赖 |
+| `packages/api/remotes/src/client/index.ts` | 删 `officeToPdfRemote` 挂载与 re-export + manifest 依赖（documentpreview 侧栏自动降级为「Office 预览不可用」，MD/代码/PDF 预览不受影响） |
+| `packages/skill/tool-workspace-dependencies/src/index.ts` | manifest schema：`python`/`pythonPackages` 改为成对可选；`workspaceDependencyPaths`/aliases/validate 相应可选化 |
+| `scripts/primary-runtime/prepare.ts` | python/wheels/office-skills 仅在 `pythonOnly`（Python SDK 载体）路径暂存；桌面 manifest 无 python 字段；digest format 9（无 python 路径） |
+| `apps/desktop/scripts/prepare-primary-runtime.ts` | 删 python 冒烟前置检查 |
+| `apps/desktop/scripts/prepare-dsh.ts` | 删 kit 断言/引擎选择/office 冒烟块；`desktopRuntimeFileExclusion` 去掉 engine 参数 |
+| `apps/desktop/scripts/runtime-file-policy.ts` | 删 LibreOffice 平台排除分支 |
+| `apps/desktop/scripts/smoke-runtime.ts` | 删 python 夹具生成、office 转换路由与 skill CLI 冒烟 |
+| `packages/experimental/liveshare/src/endpoint-classification.ts` | 删两条 officeToPdf 端点（闭包端点表完整性门禁） |
+
+### C3 闭包清退（c985081285）
+
+| 路径 | 改动 |
+|---|---|
+| `apps/cli/package.json` | 删 15 个 experimental optional bundle 依赖 + tmux-context + tool-str-replace-editor |
+| `packages/bundle/base/{package.json,cordis.patch.yml}` | 删 `llm-pi-ai` 依赖与行 |
+| `packages/util/official-bundles/src/{bundles.ts,plugin-manager.ts}` | `OPTIONAL_BUNDLES`/`ON_DEMAND_BUNDLES`/`EXTENSION_BUNDLES`/`MORE_BUNDLES`/`EXPERIMENTAL_BUNDLES` 清空；`HIDDEN_BUNDLES` 移除两行 |
+| `scripts/gen-official-bundle-catalog.ts` | 允许空目录（`syncOfficialBundleCatalog` 增加可选名单参数） |
+| `scripts/local-bundle-registry.ts` | `selectBundleDependencies` 接受空目录 |
+
+### C4 可感功能（426e70c786）
+
+| 路径 | 改动 |
+|---|---|
+| `packages/bundle/web-app/cordis.patch.yml` + manifest | 删行：`desktop-product-telemetry`、`product-analytics`、`message-feedback`、`terminal-controller`、`ui-settings-account`、`account-controller`、`ui-sidebar-browser`、`ui-sidebar-terminal` |
+| `packages/bundle/base/cordis.patch.yml` + manifest | 删行：`otel`、`session-telemetry-otel`、`command-feedback`、`deepseek-account`、`llm-deepseek-account` |
+| `apps/desktop/src/main.ts` | 删 platformView/浏览器 guest/遥测 track/账号 watch/升级遥测；welcome 流仅 API-key（`loggedIn` 恒 false）；Host ctor 回调槽位补 `undefined` 占位 |
+| `apps/desktop/src/{platform-view,platform-ipc,browser-guests,preload-browser,preload-platform,preload-platform-account,account-backend}.ts` | 删除 |
+| `apps/desktop/src/welcome-api.ts` | `WelcomeOperations` 收窄为 takeNotice/saveApiKey/skip；IPC 通道同步收窄 |
+| `apps/desktop/src/welcome-backend.ts` | 删 account/analytics RPC；`loggedIn: false` |
+| `apps/desktop/src/client/WelcomePage.tsx` | 纯 API-key 两页流（入口/键表单） |
+| `apps/desktop/src/preload-{app,welcome}.ts` | 删平台桥与登录/遥测通道 |
+| `packages/client/locale`（`ui-settings-account` 测试） | `apply.client.spec.ts` 以 `.skip` 挂起（Web-app 花名册不再挂载该插件；包内其余本地规格继续覆盖） |
+
+### 瘦身效果（win-x64 解压口径）
+
+| 项 | 上游 | fork |
+|---|---|---|
+| Python + wheels | 157MB | 0 |
+| LibreOffice kit win32-x64 | 191MB | 0 |
+| Chromium locales | 49MB | ~8MB |
+| dsh 闭包 | 345 包 | ~310 包 |
+| exe 压缩 | zlib normal | LZMA maximum |
+
+### 本机构建注意
+
+`prepare-dsh.ts` 仍用 Electron-as-Node 跑 pnpm——本机 Windows 预览版上 `ELECTRON_RUN_AS_NODE` 写文件 EPERM（见下节）。规避：把 `prepare-dsh.ts` 的 `NODE` 常量改指随包的独立 Node（`<runtime>/bin/node`）即可在本机出包；产物不变。
+
 ## 构建流水线（fork 自有，2026-10-19）
 
 | 路径 | 改动 |
