@@ -182,8 +182,7 @@ export class DesktopHostProcess {
    * @param inspectPort - Optional loopback inspector port for workspace development.
    * @param environment - Environment inherited by the Host and its plugin subprocesses.
    * @param onFailure - Receives the first unexpected child failure, including after readiness.
-   * @param primaryRuntime - Optional bundled dependency payload; when supplied, missing sibling
-   *   `office-skills` resources fail Host startup.
+   * @param primaryRuntime - Optional bundled dependency payload (Node.js and pnpm).
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
    * @param onPlatformSession - Private credential updates for embedded Platform views.
    * @param onPluginOperation - Optional diagnostic sink; malformed records are ignored without failing the Host.

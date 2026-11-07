@@ -120,14 +120,18 @@ async function pythonArchive(target: keyof typeof lock.targets, cache: string): 
  * @returns SHA-256 payload identity for installation reuse.
  */
 export function primaryRuntimePayloadDigest(
-  target: keyof typeof lock.targets, runtimeLock: typeof lock, pnpmVersion: string | undefined,
+  target: keyof typeof lock.targets, runtimeLock: typeof lock, pnpmVersion: string | undefined, python = true,
 ): string {
   const { pythonVersion, pythonRelease, nodeVersion, wheels, pythonPackages } = runtimeLock
   // Identity preserves key order within the selected target, wheel records and distribution map, plus wheel-entry order.
   // Bump format when extraction or assembly changes payload bytes without changing locked inputs.
-  return createHash('sha256').update(JSON.stringify({
+  return createHash('sha256').update(JSON.stringify(python ? {
     format: 8, target, pythonVersion, pythonRelease, nodeVersion: pnpmVersion === undefined ? undefined : nodeVersion,
     artifact: runtimeLock.targets[target], wheels, pythonPackages, pnpm: pnpmVersion,
+  } : {
+    format: 9, target, nodeVersion: pnpmVersion === undefined ? undefined : nodeVersion,
+    artifact: { nodeArchive: runtimeLock.targets[target].nodeArchive, nodeSha256: runtimeLock.targets[target].nodeSha256 },
+    pnpm: pnpmVersion,
   })).digest('hex')
 }
 
@@ -237,21 +241,27 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
       }
       prunePnpmForeignNativePackages(join(dependencies, 'pnpm'), platform, arch)
     }
-    await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
+    // The AlphaDesk desktop payload ships Node.js and pnpm only; Python and Office resources stay on the python-only carrier.
+    if (options.pythonOnly) {
+      await extractTar({ file: await pythonArchive(target, paths.downloads), cwd: dependencies })
+    }
     const manifest: PrimaryRuntimeManifest = {
       desktopVersion: options.version,
       platform,
       arch,
-      payloadDigest: primaryRuntimePayloadDigest(target, lock, pnpmVersion),
-      python: lock.pythonVersion,
+      payloadDigest: primaryRuntimePayloadDigest(target, lock, pnpmVersion, options.pythonOnly),
+      ...(options.pythonOnly ? { python: lock.pythonVersion, pythonPackages: lock.pythonPackages } : {}),
       ...(pnpmVersion === undefined ? {} : { node: lock.nodeVersion, pnpm: pnpmVersion }),
-      pythonPackages: lock.pythonPackages,
     }
-    const entries = workspaceDependencyPaths(output, manifest)
-    for (const wheel of [...lock.targets[target].wheels, ...lock.wheels]) {
-      await unpackPrimaryRuntimeWheel(await downloadPrimaryRuntimeAsset(wheel.url, wheel.sha256, paths.downloads), entries.pythonPackages)
+    if (options.pythonOnly) {
+      const entries = workspaceDependencyPaths(output, manifest)
+      const sitePackages = entries.pythonPackages
+      if (sitePackages === undefined) throw new Error('primary runtime: python payload lacks site-packages paths')
+      for (const wheel of [...lock.targets[target].wheels, ...lock.wheels]) {
+        await unpackPrimaryRuntimeWheel(await downloadPrimaryRuntimeAsset(wheel.url, wheel.sha256, paths.downloads), sitePackages)
+      }
+      prunePrimaryRuntimePythonTests(sitePackages)
     }
-    prunePrimaryRuntimePythonTests(entries.pythonPackages)
     writeFileSync(join(output, 'runtime.json'), `${JSON.stringify(manifest, undefined, 2)}\n`)
     const destination = join(paths.runtime, 'primary-runtime')
     rmSync(destination, { recursive: true, force: true })
@@ -259,9 +269,11 @@ export async function preparePrimaryRuntime(options: PreparePrimaryRuntimeOption
   } finally {
     rmSync(staging, { recursive: true, force: true })
   }
-  const assets = options.skillSource ?? join(dirname(createRequire(import.meta.url).resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets')
-  await prepareOfficeSkillAssets(assets,
-    join(paths.runtime, 'office-skills'))
+  if (options.pythonOnly) {
+    const assets = options.skillSource ?? join(dirname(createRequire(import.meta.url).resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets')
+    await prepareOfficeSkillAssets(assets,
+      join(paths.runtime, 'office-skills'))
+  }
 }
 
 /**
@@ -274,23 +286,25 @@ export function smokePrimaryRuntime(root: string, environment: NodeJS.ProcessEnv
 )): void {
   const manifest = parsePrimaryRuntime(JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')))
   if (manifest.platform !== process.platform || manifest.arch !== process.arch) return
-  if (Object.keys(manifest.pythonPackages).length === 0) throw new Error('primary runtime: missing Python distribution versions; prepare the payload before running its smoke checks.')
   const entries = workspaceDependencyPaths(root, manifest)
-  if (manifest.platform !== 'win32') {
-    const interpreter = `python${manifest.python.split('.').slice(0, 2).join('.')}`
-    for (const name of ['python', 'python3']) {
-      const path = join(dirname(entries.python), name)
-      if (!lstatSync(path).isSymbolicLink() || readlinkSync(path) !== interpreter) {
-        throw new Error(`primary runtime: Python commands must be relative aliases of ${interpreter}`)
-      }
-    }
-    if (!lstatSync(join(dirname(entries.python), interpreter)).isFile()) throw new Error('primary runtime: versioned Python must be a regular file')
-  }
   const options = { stdio: 'inherit', timeout: 120_000, env: environment } as const
-  execFileSync(entries.python, ['-I', '-B', '-c', 'import decimal, xml.parsers.expat, lzma, uuid, numpy, pandas; assert numpy.arange(4).sum() == 6; assert pandas.DataFrame({"n": [1, 2]}).n.sum() == 3'], options)
-  execFileSync(entries.python, ['-I', '-B', join(import.meta.dirname, 'smoke.py'), JSON.stringify(manifest.pythonPackages),
-    manifest.python], options)
-  execFileSync(entries.python, ['-I', '-B', '-m', 'pip', 'check'], options)
+  if (manifest.python !== undefined && entries.python !== undefined) {
+    if (Object.keys(manifest.pythonPackages ?? {}).length === 0) throw new Error('primary runtime: missing Python distribution versions; prepare the payload before running its smoke checks.')
+    if (manifest.platform !== 'win32') {
+      const interpreter = `python${manifest.python.split('.').slice(0, 2).join('.')}`
+      for (const name of ['python', 'python3']) {
+        const path = join(dirname(entries.python), name)
+        if (!lstatSync(path).isSymbolicLink() || readlinkSync(path) !== interpreter) {
+          throw new Error(`primary runtime: Python commands must be relative aliases of ${interpreter}`)
+        }
+      }
+      if (!lstatSync(join(dirname(entries.python), interpreter)).isFile()) throw new Error('primary runtime: versioned Python must be a regular file')
+    }
+    execFileSync(entries.python, ['-I', '-B', '-c', 'import decimal, xml.parsers.expat, lzma, uuid, numpy, pandas; assert numpy.arange(4).sum() == 6; assert pandas.DataFrame({"n": [1, 2]}).n.sum() == 3'], options)
+    execFileSync(entries.python, ['-I', '-B', join(import.meta.dirname, 'smoke.py'), JSON.stringify(manifest.pythonPackages),
+      manifest.python], options)
+    execFileSync(entries.python, ['-I', '-B', '-m', 'pip', 'check'], options)
+  }
   if (entries.node !== undefined) execFileSync(entries.node, ['-e', `if (process.versions.node !== ${JSON.stringify(manifest.node)}) process.exit(1)`], options)
   if (entries.pnpm !== undefined && entries.node !== undefined) execFileSync(entries.node, [entries.pnpm, '--version'], options)
 }

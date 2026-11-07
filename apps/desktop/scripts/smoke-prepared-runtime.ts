@@ -2,9 +2,8 @@
 import { execFile } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
-import { runtimeArchivePath } from '../../desktop-host/src/office-engine.ts'
 import { desktopNodeEnvironment } from '../src/node-environment.ts'
 import type { DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
@@ -26,7 +25,8 @@ export async function smokePreparedRuntime(
   const environment = { ...scrubWindowsSigningEnvironment(process.env), NODE_OPTIONS: '',
     NARB_NATIVE_CACHE_DIR: cache, NARB_DISABLE_NATIVE_CACHE: '0' }
   try {
-    const archive = runtimeArchivePath(root)
+    const parent = dirname(root)
+    const archive = basename(parent) === 'app.asar' ? parent : undefined
     if (archive !== undefined) await verifyRuntimeArchive(archive, descriptor)
     const { stdout } = await promisify(execFile)(node, [
       '--expose-internals', resolve(import.meta.dirname, '../tests/fixtures/runtime-payload-smoke.mjs'), root, resourcesRuntime,

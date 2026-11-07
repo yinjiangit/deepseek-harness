@@ -39,6 +39,7 @@ it.skipIf(process.platform === 'win32')('keeps SDK Python resources usable after
 
   await expect(stat(join(destination, 'stale'))).rejects.toMatchObject({ code: 'ENOENT' })
   const paths = await resolvePrimaryRuntime(join(destination, 'primary-runtime'))
+  if (paths.python === undefined) throw new Error('python SDK payload must ship an interpreter')
   expect(await readFile(paths.python, 'utf8')).toBe('interpreter')
   for (const alias of ['python', 'python3']) {
     expect(await readlink(join(destination, bin, alias))).toBe('python3.12')

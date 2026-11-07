@@ -4,10 +4,8 @@ import { delimiter, join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { runCli } from '@deepseek-ai/dsh/lib/bin.js'
 import { runDesktopCli } from '../../desktop-host/src/cli.ts'
-import { installOfficeEngineResolution } from '../../desktop-host/src/office-engine.ts'
 
 vi.mock('@deepseek-ai/dsh/lib/bin.js', () => ({ runCli: vi.fn() }))
-vi.mock('../../desktop-host/src/office-engine.ts', () => ({ installOfficeEngineResolution: vi.fn() }))
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -19,9 +17,9 @@ it.each(['system-bin', undefined])('dispatches with bundled pnpm when PATH is %s
   const runtime = join('Application 中文 with spaces', 'resources', 'app.asar', 'dsh')
   const support = join('Application 中文 with spaces', 'resources', 'runtime')
 
-  await runDesktopCli(runtime, support)
+  await runDesktopCli(support)
+  void runtime
 
-  expect(installOfficeEngineResolution).toHaveBeenCalledExactlyOnceWith(runtime)
   expect(runCli).toHaveBeenCalledExactlyOnceWith({
     manageDesktopProfile: true,
     packageManager: {

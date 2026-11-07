@@ -36,25 +36,25 @@ export interface PrimaryRuntimeManifest {
   readonly arch: string
   /** Locked payload identity; absent only in installations made before payload hashing. */
   readonly payloadDigest?: string
-  /** Bundled Python interpreter version. */
-  readonly python: string
+  /** Bundled Python interpreter version; absent when the payload ships no Python. */
+  readonly python?: string
   /** Absent when the payload ships no Node.js. */
   readonly node?: string
   /** Bundled pnpm version; requires a bundled Node.js executable. */
   readonly pnpm?: string
-  /** All recorded Python distribution versions; empty for legacy files without a distribution map. */
-  readonly pythonPackages: Readonly<Record<string, string>>
+  /** All recorded Python distribution versions; empty for legacy files without a distribution map; paired with `python`. */
+  readonly pythonPackages?: Readonly<Record<string, string>>
 }
 
 /** Absolute entry points and bundled versions; pnpm runs through the returned Node executable. */
 export interface WorkspaceDependencies {
-  readonly python: string
+  readonly python?: string
   readonly node?: string
   readonly pnpm?: string
-  readonly pythonPackages: string
+  readonly pythonPackages?: string
   readonly nodePackages?: string
   /** Locked distribution versions; excludes packages users add to the installed environment. */
-  readonly pythonDistributions: Readonly<Record<string, string>>
+  readonly pythonDistributions?: Readonly<Record<string, string>>
 }
 
 const VERSION = /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/u
@@ -92,14 +92,15 @@ export function parsePrimaryRuntime(value: unknown): PrimaryRuntimeManifest {
   if (typeof desktopVersion !== 'string' || desktopVersion.length === 0
     || typeof platform !== 'string' || !PLATFORMS.includes(platform)
     || typeof arch !== 'string' || !['x64', 'arm64'].includes(arch)
-    || !isVersion(python)
+    || (python !== undefined && !isVersion(python))
+    || (python !== undefined) !== (pythonPackages !== undefined)
     || (node !== undefined && !isVersion(node))
     || (pnpm !== undefined && (!isVersion(pnpm) || node === undefined))
     || (payloadDigest !== undefined && (typeof payloadDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(payloadDigest)))
-    || !isDistributionMap(pythonPackages)) {
+    || (pythonPackages !== undefined && !isDistributionMap(pythonPackages))) {
     throw new Error('primary runtime: invalid metadata')
   }
-  const entries = Object.entries(pythonPackages)
+  const entries = Object.entries(pythonPackages ?? {})
   const distributions = new Map(entries.map(([name, version]) => [name.toLowerCase().replace(/[-_.]+/gu, '-'), version]))
   if (distributions.size !== entries.length) throw new Error('primary runtime: invalid metadata')
   // Only the old on-disk format duplicates these versions. New manifests use the distribution map alone.
@@ -115,10 +116,10 @@ export function parsePrimaryRuntime(value: unknown): PrimaryRuntimeManifest {
   return {
     desktopVersion, platform, arch,
     ...(payloadDigest === undefined ? {} : { payloadDigest }),
-    python,
+    ...(python === undefined ? {} : { python }),
     ...(node === undefined ? {} : { node }),
     ...(pnpm === undefined ? {} : { pnpm }),
-    pythonPackages,
+    ...(pythonPackages === undefined ? {} : { pythonPackages }),
   }
 }
 
@@ -141,7 +142,7 @@ export async function readPrimaryRuntime(root: string): Promise<PrimaryRuntimeMa
  */
 export async function primaryRuntimePythonAliases(root: string, manifest: PrimaryRuntimeManifest): Promise<ReadonlyMap<string, string>> {
   const aliases = new Map<string, string>()
-  if (manifest.platform === 'win32') return aliases
+  if (manifest.platform === 'win32' || manifest.python === undefined) return aliases
   const interpreter = `python${manifest.python.split('.').slice(0, 2).join('.')}`
   for (const name of ['python', 'python3']) {
     const path = `dependencies/python/bin/${name}`
@@ -188,13 +189,12 @@ export function workspaceDependencyPaths(root: string, manifest: PrimaryRuntimeM
     nodePackages: join(dependencies, 'node', 'node_modules'),
   }
   const pnpm = manifest.pnpm === undefined ? {} : { pnpm: join(dependencies, 'pnpm', 'bin', 'pnpm.mjs') }
-  return {
+  const python = manifest.python === undefined ? {} : {
     python: join(dependencies, 'python', ...(windows ? ['python.exe'] : ['bin', 'python3'])),
-    ...node,
-    ...pnpm,
     pythonPackages: join(dependencies, 'python', ...(windows ? ['Lib'] : ['lib', `python${manifest.python.split('.').slice(0, 2).join('.')}`]), 'site-packages'),
-    pythonDistributions: manifest.pythonPackages,
+    ...(manifest.pythonPackages === undefined ? {} : { pythonDistributions: manifest.pythonPackages }),
   }
+  return { ...node, ...pnpm, ...python }
 }
 
 async function validatePayloadEntries(paths: WorkspaceDependencies): Promise<void> {
@@ -299,12 +299,12 @@ export function apply(ctx: Context, config: Config): void {
       schema: {
         type: 'object', additionalProperties: false,
         properties: {
-          python: { type: 'string', required: true },
+          python: { type: 'string', description: 'Absent when the payload ships no Python.' },
           node: { type: 'string', description: 'Absent when the payload ships no Node.js.' },
           pnpm: { type: 'string', description: 'Absent when the payload ships no pnpm.' },
-          pythonPackages: { type: 'string', required: true },
+          pythonPackages: { type: 'string', description: 'Absent when the payload ships no Python.' },
           nodePackages: { type: 'string', description: 'Absent when the payload ships no Node.js.' },
-          pythonDistributions: { type: 'object', additionalProperties: true, required: true, description: 'Bundled distribution names and versions recorded in runtime.json; excludes user-installed additions.' },
+          pythonDistributions: { type: 'object', additionalProperties: true, description: 'Bundled distribution names and versions recorded in runtime.json; absent when the payload ships no Python.' },
         },
       },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, undefined, 2) }],

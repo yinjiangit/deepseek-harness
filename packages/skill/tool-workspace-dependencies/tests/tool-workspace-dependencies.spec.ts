@@ -16,7 +16,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import * as workspaceDependencies from '../src/index.ts'
-import { copyPrimaryRuntime, installPrimaryRuntime, parsePrimaryRuntime, readPrimaryRuntime, resolvePrimaryRuntime, workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../src/index.ts'
+import { copyPrimaryRuntime, installPrimaryRuntime, parsePrimaryRuntime, readPrimaryRuntime, resolvePrimaryRuntime, workspaceDependencyPaths, type PrimaryRuntimeManifest, type WorkspaceDependencies } from '../src/index.ts'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof fs>()
@@ -45,7 +45,7 @@ async function fixture() {
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, 'interpreter')
   }
-  await mkdir(paths.pythonPackages, { recursive: true })
+  if (paths.pythonPackages !== undefined) await mkdir(paths.pythonPackages, { recursive: true })
   if (paths.nodePackages !== undefined) await mkdir(paths.nodePackages, { recursive: true })
   await writeFile(join(source, 'runtime.json'), JSON.stringify(manifest))
   return { source, root, manifest, directory }
@@ -63,6 +63,7 @@ it('installs offline, reuses the same release, and leaves environment and user p
   const { source, root, manifest } = await fixture()
   const environment = { ...process.env }
   const installed = await installPrimaryRuntime(source, root)
+  if (installed.pythonPackages === undefined) throw new Error('fixture payload must ship Python site-packages')
   await writeFile(join(installed.pythonPackages, 'user-package.py'), 'user content')
   expect(await installPrimaryRuntime(source, root)).toEqual(installed)
   expect(installed.pythonDistributions).toEqual(manifest.pythonPackages)
@@ -70,22 +71,28 @@ it('installs offline, reuses the same release, and leaves environment and user p
   expect(process.env).toEqual(environment)
 })
 
+/** Narrow fixture payloads that always bundle Python. */
+function pythonPaths(paths: WorkspaceDependencies): { python: string; pythonPackages: string } {
+  if (paths.python === undefined || paths.pythonPackages === undefined) throw new Error('test fixture must bundle Python')
+  return { python: paths.python, pythonPackages: paths.pythonPackages }
+}
+
 // Windows installations use python.exe; this upgrade needs the native POSIX alias layout.
 it.skipIf(process.platform === 'win32')('upgrades expanded Python commands to relocatable aliases and reuses the installed payload', async () => {
   const { source, root, manifest, directory } = await fixture()
   await installPrimaryRuntime(source, root)
-  const bin = dirname(workspaceDependencyPaths(source, manifest).python)
+  const bin = dirname(pythonPaths(workspaceDependencyPaths(source, manifest)).python)
   await rename(join(bin, 'python3'), join(bin, 'python3.12'))
   for (const name of ['python', 'python3']) await symlink('python3.12', join(bin, name))
   await writeFile(join(source, 'runtime.json'), JSON.stringify({ ...manifest, payloadDigest: 'a'.repeat(64) }))
   const installed = await installPrimaryRuntime(source, root)
-  await writeFile(join(installed.pythonPackages, 'user.py'), 'user package')
+  await writeFile(join(pythonPaths(installed).pythonPackages, 'user.py'), 'user package')
   expect(await installPrimaryRuntime(source, root)).toEqual(installed)
-  expect(await readFile(join(installed.pythonPackages, 'user.py'), 'utf8')).toBe('user package')
+  expect(await readFile(join(pythonPaths(installed).pythonPackages, 'user.py'), 'utf8')).toBe('user package')
   const moved = join(directory, 'moved runtime with spaces')
   await rename(root, moved)
   await rm(source, { recursive: true })
-  const relocatedBin = dirname((await resolvePrimaryRuntime(moved)).python)
+  const relocatedBin = dirname(pythonPaths(await resolvePrimaryRuntime(moved)).python)
   expect((await lstat(join(relocatedBin, 'python3.12'))).isFile()).toBe(true)
   for (const name of ['python', 'python3']) {
     expect(await readlink(join(relocatedBin, name))).toBe('python3.12')
@@ -98,7 +105,7 @@ it.skipIf(process.platform === 'win32').each(['copy', 'reuse', 'in-place'] as co
   const { source, root, manifest } = await fixture()
   if (mode === 'reuse') await installPrimaryRuntime(source, root)
   const payload = mode === 'reuse' ? root : source
-  const python = workspaceDependencyPaths(payload, manifest).python
+  const python = pythonPaths(workspaceDependencyPaths(payload, manifest)).python
   await rename(python, join(dirname(dirname(python)), 'outside-python'))
   await symlink('../outside-python', python)
   const operation = mode === 'in-place' ? resolvePrimaryRuntime(source) : installPrimaryRuntime(source, root)
@@ -108,11 +115,11 @@ it.skipIf(process.platform === 'win32').each(['copy', 'reuse', 'in-place'] as co
 it('copies Windows payloads without creating interpreter aliases', async () => {
   const { source, root, manifest } = await fixture()
   const windows = { ...manifest, platform: 'win32' }
-  const python = workspaceDependencyPaths(source, windows).python
+  const python = pythonPaths(workspaceDependencyPaths(source, windows)).python
   await writeFile(python, 'Windows interpreter')
   await copyPrimaryRuntime(source, root, windows)
-  expect(await readFile(workspaceDependencyPaths(root, windows).python, 'utf8')).toBe('Windows interpreter')
-  expect((await lstat(workspaceDependencyPaths(root, windows).python)).isFile()).toBe(true)
+  expect(await readFile(pythonPaths(workspaceDependencyPaths(root, windows)).python, 'utf8')).toBe('Windows interpreter')
+  expect((await lstat(pythonPaths(workspaceDependencyPaths(root, windows)).python)).isFile()).toBe(true)
 })
 
 it('propagates an unreadable alias without creating a partial payload', async () => {
@@ -136,14 +143,15 @@ it('replaces dependencies when the locked payload changes without a Desktop vers
   const first = { ...manifest, payloadDigest: 'a'.repeat(64), pythonPackages: { 'python-docx': '1.1.2' } }
   await writeFile(join(source, 'runtime.json'), JSON.stringify(first))
   const installed = await installPrimaryRuntime(source, root)
-  await writeFile(join(installed.pythonPackages, 'old-package.py'), 'old dependency')
+  const installedPython = pythonPaths(installed).pythonPackages
+  await writeFile(join(installedPython, 'old-package.py'), 'old dependency')
   const next = { ...first, payloadDigest: 'b'.repeat(64), pythonPackages: { 'python-docx': '1.2.0' } }
   await writeFile(join(source, 'runtime.json'), JSON.stringify(next))
-  await writeFile(join(workspaceDependencyPaths(source, next).pythonPackages, 'new-package.py'), 'new dependency')
+  await writeFile(join(pythonPaths(workspaceDependencyPaths(source, next)).pythonPackages, 'new-package.py'), 'new dependency')
   await installPrimaryRuntime(source, root)
   expect(await readPrimaryRuntime(root)).toEqual(next)
-  expect(await readFile(join(installed.pythonPackages, 'new-package.py'), 'utf8')).toBe('new dependency')
-  await expect(readFile(join(installed.pythonPackages, 'old-package.py'))).rejects.toMatchObject({ code: 'ENOENT' })
+  expect(await readFile(join(installedPython, 'new-package.py'), 'utf8')).toBe('new dependency')
+  await expect(readFile(join(installedPython, 'old-package.py'))).rejects.toMatchObject({ code: 'ENOENT' })
 })
 
 it('upgrades a release manifest without a payload digest', async () => {
@@ -157,14 +165,14 @@ it('upgrades a release manifest without a payload digest', async () => {
 it('replaces changed payload bytes when only the digest changes', async () => {
   const { source, root, manifest } = await fixture()
   const first = { ...manifest, payloadDigest: 'a'.repeat(64), pythonPackages: { 'python-docx': '1.2.0' } }
-  const sourceFile = join(workspaceDependencyPaths(source, first).pythonPackages, 'library.py')
+  const sourceFile = join(pythonPaths(workspaceDependencyPaths(source, first)).pythonPackages, 'library.py')
   await writeFile(join(source, 'runtime.json'), JSON.stringify(first))
   await writeFile(sourceFile, 'first wheel bytes')
   const installed = await installPrimaryRuntime(source, root)
   await writeFile(join(source, 'runtime.json'), JSON.stringify({ ...first, payloadDigest: 'b'.repeat(64) }))
   await writeFile(sourceFile, 'repacked wheel bytes')
   await installPrimaryRuntime(source, root)
-  expect(await readFile(join(installed.pythonPackages, 'library.py'), 'utf8')).toBe('repacked wheel bytes')
+  expect(await readFile(join(pythonPaths(installed).pythonPackages, 'library.py'), 'utf8')).toBe('repacked wheel bytes')
   expect((await readPrimaryRuntime(root)).pythonPackages).toEqual(first.pythonPackages)
 })
 
@@ -172,7 +180,7 @@ it('keeps the installed release when the replacement payload is incomplete', asy
   const { source, root, manifest } = await fixture()
   await installPrimaryRuntime(source, root)
   await writeFile(join(source, 'runtime.json'), JSON.stringify({ ...manifest, desktopVersion: '2.0.0' }))
-  await rm(workspaceDependencyPaths(source, manifest).python)
+  await rm(pythonPaths(workspaceDependencyPaths(source, manifest)).python)
   await expect(installPrimaryRuntime(source, root)).rejects.toThrow()
   expect((await readPrimaryRuntime(root)).desktopVersion).toBe('1.0.0')
 })
@@ -292,7 +300,7 @@ it('uses a payload in place without copying and tolerates a payload without Node
     pythonDistributions: { 'python-docx': '1.2.0' },
   })
   await expect(readFile(join(directory, 'home', 'dsh-runtimes', 'dsh-primary-runtime', 'runtime.json'))).rejects.toMatchObject({ code: 'ENOENT' })
-  await rm(paths.python)
+  await rm(pythonPaths(paths).python)
   await expect(resolvePrimaryRuntime(source)).rejects.toMatchObject({ code: 'ENOENT' })
 })
 
@@ -453,11 +461,12 @@ it('reuses an equivalent legacy installation without replacing user-added packag
   const stored = JSON.stringify(legacyManifest(manifest))
   await writeFile(join(source, 'runtime.json'), stored)
   const installed = await installPrimaryRuntime(source, root)
-  await writeFile(join(installed.pythonPackages, 'user-package.py'), 'keep')
+  const installedSite = pythonPaths(installed).pythonPackages
+  await writeFile(join(installedSite, 'user-package.py'), 'keep')
   await writeFile(join(source, 'runtime.json'), JSON.stringify(manifest))
   expect(await installPrimaryRuntime(source, root)).toEqual(installed)
   expect(await readFile(join(root, 'runtime.json'), 'utf8')).toBe(stored)
-  expect(await readFile(join(installed.pythonPackages, 'user-package.py'), 'utf8')).toBe('keep')
+  expect(await readFile(join(installedSite, 'user-package.py'), 'utf8')).toBe('keep')
 })
 
 it('accepts flat Python libraries without requiring or singling out numpy and pandas', async () => {

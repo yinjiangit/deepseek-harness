@@ -34,7 +34,6 @@ import {
 } from './macos-runtime.ts'
 import { desktopTargetPlatform, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { desktopRuntimeFileExclusion } from './runtime-file-policy.ts'
-import { selectOfficeEngine } from '../../../scripts/libreoffice-packages.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
@@ -142,13 +141,11 @@ async function main(): Promise<void> {
     const targetName = resolveDesktopBuildTarget()
     const target = desktopTargetPlatform(targetName)
     const modules = join(BUILD_ROOT, 'node_modules')
-    const officeManifest = JSON.parse(readFileSync(join(modules, '@deepseek-ai/libreoffice-kit/package.json'), 'utf8'))
-    const officeEngine = selectOfficeEngine(officeManifest, target)
     mkdirSync(DSH_OUTPUT_ROOT, { recursive: true })
     await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:materialize-modules', async () => {
       cpSync(modules, join(DSH_OUTPUT_ROOT, 'node_modules'), {
         recursive: true, dereference: true,
-        filter: source => desktopRuntimeFileExclusion(relative(modules, source), target, officeEngine) === undefined,
+        filter: source => desktopRuntimeFileExclusion(relative(modules, source), target) === undefined,
       })
     })
     writeFileSync(join(DSH_OUTPUT_ROOT, 'package.json'), `${JSON.stringify({
@@ -159,9 +156,6 @@ async function main(): Promise<void> {
       if (!existsSync(join(DSH_OUTPUT_ROOT, 'node_modules', DESKTOP_HOST_PACKAGE, file))) {
         throw new Error(`desktop runtime: missing private Host file ${file}`)
       }
-    }
-    if (!existsSync(join(DSH_OUTPUT_ROOT, 'node_modules', '@deepseek-ai', `libreoffice-kit-${officeEngine}`, 'prebuilds.json'))) {
-      throw new Error(`desktop runtime: missing required LibreOffice engine ${officeEngine}`)
     }
     if (process.platform === 'darwin' && process.env.DSH_DESKTOP_UNSIGNED !== '1') {
       const cacheDirectory = resolveMacOSSignatureCacheDirectory(process.env, BUILD_PATHS.root)
