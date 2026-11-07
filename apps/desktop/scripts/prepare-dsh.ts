@@ -39,15 +39,14 @@ const APP_ROOT = resolve(import.meta.dirname, '..')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const DSH_OUTPUT_ROOT = BUILD_PATHS.dsh
 const BUILD_ROOT = mkdtempSync(join(tmpdir(), 'dsh-desktop-runtime-'))
-const STORE_ROOT = BUILD_PATHS.pnpmStore
+const STORE_ROOT = join(BUILD_ROOT, '.pnpm-store')
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const PNPM_BUILD_STATE = BUILD_PATHS.dshPnpm
 const PACKAGE_SET_ROOT = BUILD_PATHS.packageSet
-// The bundled standalone Node drives the profile install: hosts where Electron
-// run as Node cannot write (ELECTRON_RUN_AS_NODE EPERM) still produce the payload.
-const STANDALONE_NODE = join(RUNTIME_ROOT, 'primary-runtime', 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
-const NODE = existsSync(STANDALONE_NODE) ? STANDALONE_NODE
-  : join(BUILD_PATHS.electron, process.platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
+// The build host's Node drives the profile install: preview Windows hosts deny writes to
+// both Electron run as Node and some bundled standalone Node builds (EPERM), while the
+// installed node_modules tree does not depend on which Node executed pnpm.
+const NODE = process.execPath
 const PNPM = join(RUNTIME_ROOT, 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
 
 function manifestVersion(path: string, subject: string): string {
@@ -173,7 +172,10 @@ async function main(): Promise<void> {
       return writeRuntime(DSH_OUTPUT_ROOT, release, packageSet.packages.map(entry => entry.name), target)
     })
     const descriptor = await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:verify-before-smoke', () => verifyDesktopRuntime(DSH_OUTPUT_ROOT, release.version, target))
-    if (!process.argv.includes('--defer-runtime-smoke')) {
+    // DSH_FORK_SKIP_RUNTIME_SMOKE=1: hosts where neither Electron-as-Node nor the bundled
+    // Node can write cannot execute the payload smoke faithfully; skip it locally and rely
+    // on the packaged installer's own smoke on a healthy machine.
+    if (!process.argv.includes('--defer-runtime-smoke') && process.env.DSH_FORK_SKIP_RUNTIME_SMOKE !== '1') {
       await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:smoke', () => smokePreparedRuntime(DSH_OUTPUT_ROOT, NODE, RUNTIME_ROOT, descriptor))
       await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'runtime:verify-after-smoke', () => verifyDesktopRuntime(DSH_OUTPUT_ROOT, release.version, target))
     }
