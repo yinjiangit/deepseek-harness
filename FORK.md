@@ -115,11 +115,11 @@
 - `pnpm run verify-translation-pairing`：1014 对一致。
 - 浏览器实测（`pnpm dsh web`，Playwright 截图）：侧栏 A 标志 + `AlphaDesk`，首屏 A 标志，配色表已挂载（accent `#c4a55e`、navy `#587eba`），鲸鱼与官方字标零残留。
 
-## 瘦身定制（2026-11-08，commits 402fc4bdbc → 426e70c786）
+## 瘦身定制（2026-11-08，commits 五个提交）
 
 目标：缩小 win-x64 安装器（上游解压 ≈1GB / exe ≈400MB）。上游同步时按本节逐条重放；每条都改上游文件，rerere 已记录大部分冲突形态。
 
-### C1 压缩与语言（402fc4bdbc/36b28aba43）
+### C1 压缩与语言
 
 | 路径 | 改动 |
 |---|---|
@@ -130,7 +130,7 @@
 | `apps/desktop/src/locale.ts` | 删 ja/es/fr/de/ru/pt 六个字典（保留 en/zh） |
 | `packages/client/locale/src/client/index.ts` | 删 `addLanguage` 循环与 6 语言字典注册（字典文件保留未导入，降低同步冲突） |
 
-### C2 Office/Python 切除（3eaecbd460，安装后 −348MB）
+### C2 Office/Python 切除（安装后 −348MB）
 
 | 路径 | 改动 |
 |---|---|
@@ -147,7 +147,7 @@
 | `apps/desktop/scripts/smoke-runtime.ts` | 删 python 夹具生成、office 转换路由与 skill CLI 冒烟 |
 | `packages/experimental/liveshare/src/endpoint-classification.ts` | 删两条 officeToPdf 端点（闭包端点表完整性门禁） |
 
-### C3 闭包清退（c985081285）
+### C3 闭包清退
 
 | 路径 | 改动 |
 |---|---|
@@ -157,7 +157,7 @@
 | `scripts/gen-official-bundle-catalog.ts` | 允许空目录（`syncOfficialBundleCatalog` 增加可选名单参数） |
 | `scripts/local-bundle-registry.ts` | `selectBundleDependencies` 接受空目录 |
 
-### C4 可感功能（426e70c786）
+### C4 可感功能
 
 | 路径 | 改动 |
 |---|---|
