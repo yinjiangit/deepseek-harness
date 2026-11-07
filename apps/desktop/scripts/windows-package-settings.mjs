@@ -15,7 +15,7 @@ export function resolveWindowsPackageSettings(environment) {
   if (!/^[1-9]\d*$/u.test(pack) || !Number.isSafeInteger(Number(pack))) {
     throw new Error('desktop package: DSH_DESKTOP_WINDOWS_PACK_CONCURRENCY must be a positive integer')
   }
-  const compression = environment.DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL ?? environment.ELECTRON_BUILDER_COMPRESSION_LEVEL ?? '3'
+  const compression = environment.DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL ?? environment.ELECTRON_BUILDER_COMPRESSION_LEVEL ?? '9'
   if (!/^[0-9]$/u.test(compression)) {
     throw new Error('desktop package: DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL must be an integer from 0 to 9')
   }

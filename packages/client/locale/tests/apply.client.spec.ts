@@ -185,48 +185,11 @@ describe('locale apply', () => {
     expect(instance.getSnapshot().options).toEqual([
       { id: 'zh', label: '中文' },
       { id: 'en', label: 'English' },
-      { id: 'ja', label: '日本語' },
-      { id: 'es', label: 'Español' },
-      { id: 'fr', label: 'Français' },
-      { id: 'de', label: 'Deutsch' },
-      { id: 'ru', label: 'Русский' },
-      { id: 'pt', label: 'Português' },
       { id: 'it', label: 'Italiano' },
     ])
 
     await languagePack.dispose()
-    expect(instance.getSnapshot().options.map(option => option.id)).toEqual(['zh', 'en', 'ja', 'es', 'fr', 'de', 'ru', 'pt'])
-  })
-
-  it.each([
-    ['ja', '日本語', '言語', 'キャンセル'],
-    ['es', 'Español', 'Idioma', 'Cancelar'],
-    ['fr', 'Français', 'Langue', 'Annuler'],
-    ['de', 'Deutsch', 'Sprache', 'Abbrechen'],
-    ['ru', 'Русский', 'Язык', 'Отмена'],
-    ['pt', 'Português', 'Idioma', 'Cancelar'],
-  ])('restores %s from the Host and releases its language and dictionaries on unload', async (id, label, languageTitle, cancel) => {
-    const b = await bench(id)
-    onTestFinished(() => b.ctx.fiber.dispose())
-    declareItems(b.slots)
-    const fiber = b.ctx.plugin({ inject: [...inject], apply })
-    await fiber.await()
-    const locale = b.ctx.get('locale') as LocaleRuntime
-    const { instance, face } = faceOf(b.slots)
-    expect(instance.getSnapshot().active).toBe(id)
-    expect(locale.bind(SETTINGS_NS)('language.title')).toBe(languageTitle)
-    expect(locale.bind('common')('cancel')).toBe(cancel)
-    face.setLocale('en')
-    face.setLocale(id)
-    await vi.waitFor(() => { expect(b.mutate).toHaveBeenCalledTimes(2) })
-    expect(b.mutate.mock.calls.at(-1)?.[1]).toEqual([{ op: 'set', path: ['preference'], value: id }])
-    await fiber.dispose()
-    expect(locale.getSnapshot().locales.map(option => option.id)).toEqual(['zh', 'en'])
-    expect(() => { locale.setLocale(id) }).toThrow('not registered')
-    const remove = locale.addLanguage({ id, label, fallback: 'en' })
-    locale.setLocale(id)
-    expect(locale.bind('common')('cancel')).toBe('cancel')
-    remove()
+    expect(instance.getSnapshot().options.map(option => option.id)).toEqual(['zh', 'en'])
   })
 
   it('loads and refreshes the explicit Host preference after nonblocking activation', async () => {

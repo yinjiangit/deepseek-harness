@@ -121,6 +121,9 @@ export function createElectronBuilderConfig(
     artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
+    // AlphaDesk ships English and Chinese only; LZMA buys ~30% installer size over the zlib default.
+    compression: 'maximum',
+    electronLanguages: ['en', 'zh_CN'],
     electronDist: buildPaths.electron,
     electronFuses: { runAsNode: true },
     beforeBuild: async () => {
@@ -166,7 +169,7 @@ export function createElectronBuilderConfig(
       category: 'public.app-category.developer-tools',
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
-        CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
+        CFBundleLocalizations: ['en', 'zh_CN'],
         NSMicrophoneUsageDescription: 'AlphaDesk uses your microphone to transcribe speech into message drafts.',
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
