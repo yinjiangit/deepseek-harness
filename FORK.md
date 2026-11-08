@@ -179,11 +179,12 @@
 | LibreOffice kit win32-x64 | 191MB | 0 |
 | Chromium locales | 49MB | ~8MB |
 | dsh 闭包 | 345 包 | ~310 包 |
-| exe 压缩 | zlib normal | LZMA maximum |
+| exe | ≈400MB | **161.5MB（169,350,749 B，LZMA maximum）** |
+| 安装后 | ≈1GB | **572MB**（runtime 111MB：Node+pnpm；dsh 树 ~150MB 进 asar） |
 
 ### 本机构建注意
 
-`prepare-dsh.ts` 仍用 Electron-as-Node 跑 pnpm——本机 Windows 预览版上 `ELECTRON_RUN_AS_NODE` 写文件 EPERM（见下节）。规避：把 `prepare-dsh.ts` 的 `NODE` 常量改指随包的独立 Node（`<runtime>/bin/node`）即可在本机出包；产物不变。
+本机出包（2026-11-08 实测）四个开关：`prepare-dsh.ts` 用构建宿主 Node 跑 pnpm（随包 Node 24.21 在本机同样写 EPERM）；pnpm store 移入一次性项目目录内（跳过 store→project 符号链接，junction 在 pnpm 子进程里也 EPERM）；`DSH_FORK_SKIP_RUNTIME_SMOKE=1` 跳过 payload 冒烟（本机两套运行时都写不了，冒烟无法忠实执行）；打包后 `smoke-packaged-runtime` 仍会因同一宿主限制失败——exe/安装产物已完整产出，装在正常机器上验证。
 
 ## 构建流水线（fork 自有，2026-10-19）
 
