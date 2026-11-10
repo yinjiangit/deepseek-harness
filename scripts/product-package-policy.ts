@@ -16,6 +16,23 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  'packages/client/ui-deliverables': { category: 'optional', reason: 'Deliveries tail cards; AlphaDesk removed the deliverables surface.' },
+  'packages/client/ui-settings-plugin-inventory': { category: 'optional', reason: 'Plugin inventory tab; AlphaDesk removed the Plugins settings section.' },
+  'packages/client/ui-settings-plugins': { category: 'optional', reason: 'Built-in plugins settings section; AlphaDesk removed plugin management UI.' },
+  'packages/client/ui-subagent': { category: 'optional', reason: 'Subagent conversation catalog; AlphaDesk removed delegation.' },
+  'packages/client/ui-workflow-run': { category: 'optional', reason: 'Workflow-run Chat node; AlphaDesk removed workflow orchestration.' },
+  'packages/deliverables/workspace-changes': { category: 'optional', reason: 'Per-turn changed-file recording; AlphaDesk removed the deliverables surface.' },
+  'packages/ptc-runtime/ptc-runtime': { category: 'optional', reason: 'PTC execution seam; AlphaDesk ships no PTC profile.' },
+  'packages/ptc-runtime/ptc-runtime-node': { category: 'optional', reason: 'Node PTC runtime; AlphaDesk ships no PTC profile.' },
+  'packages/session/session-stats': { category: 'optional', reason: 'Chat stats strip projection; AlphaDesk removed the stats strip.' },
+  'packages/session/session-turn-outline': { category: 'optional', reason: 'Chat turn rail projection; AlphaDesk removed the turn rail.' },
+  'packages/subagent/subagent-fork-in-process': { category: 'optional', reason: 'Fork subagent backend; AlphaDesk removed delegation.' },
+  'packages/subagent/subagent-spawn-in-process': { category: 'optional', reason: 'Spawn subagent backend; AlphaDesk removed delegation.' },
+  'packages/subagent/tool-subagent': { category: 'optional', reason: 'Subagent delegation tool; AlphaDesk removed delegation.' },
+  'packages/subagent/tool-subagent-control': { category: 'optional', reason: 'Subagent control tools; AlphaDesk removed delegation.' },
+  'packages/workflow/tool-workflow': { category: 'optional', reason: 'Workflow tool; AlphaDesk removed workflow orchestration.' },
+  'packages/workflow/workflow': { category: 'optional', reason: 'Workflow engine seam; AlphaDesk removed workflow orchestration.' },
+  'packages/workflow/workflow-ptc': { category: 'optional', reason: 'Workflow orchestration backend; AlphaDesk removed workflow orchestration.' },
   'packages/client/ui-goal': { category: 'optional', reason: 'GoalBar surface; AlphaDesk ships no goal feature.' },
   'packages/client/ui-message-feedback': { category: 'optional', reason: 'Per-message feedback surface; AlphaDesk removed the feedback feature.' },
   'packages/client/ui-open-in-app': { category: 'optional', reason: 'Open In split button; AlphaDesk removed the open-in-app feature.' },
