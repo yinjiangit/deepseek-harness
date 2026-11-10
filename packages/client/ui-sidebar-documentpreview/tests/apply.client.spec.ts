@@ -138,9 +138,10 @@ describe('ui-sidebar-documentpreview apply', () => {
         owners.set(extension, earlier ?? definition.id)
       }
     }
-    // AlphaDesk ships no spreadsheet renderer: delimited files fall through to Code.
+    // AlphaDesk ships no spreadsheet renderer: CSV falls through to Code, and
+    // TSV is left to the plain-text default because no renderer declares it.
     expect(previews.candidates('table.csv').map(candidate => candidate.id)).toEqual([sharedHighlighter])
-    expect(previews.candidates('table.tsv')[0]?.id).toBe(sharedHighlighter)
+    expect(previews.candidates('table.tsv')).toEqual([])
   })
 
   it('injects paged and byte Remote reads independently of resource metadata', async () => {

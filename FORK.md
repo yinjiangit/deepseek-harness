@@ -186,6 +186,50 @@
 
 本机出包（2026-11-08 实测）四个开关：`prepare-dsh.ts` 用构建宿主 Node 跑 pnpm（随包 Node 24.21 在本机同样写 EPERM）；pnpm store 移入一次性项目目录内（跳过 store→project 符号链接，junction 在 pnpm 子进程里也 EPERM）；`DSH_FORK_SKIP_RUNTIME_SMOKE=1` 跳过 payload 冒烟（本机两套运行时都写不了，冒烟无法忠实执行）；打包后 `smoke-packaged-runtime` 仍会因同一宿主限制失败——exe/安装产物已完整产出，装在正常机器上验证。
 
+## 功能面削减（2026-11-10）
+
+在瘦身基础上继续削减可用功能。**除电子表格预览外，包全部保留，只从组合层卸载**：这样可以避开三条仓库机制——`api-remotes` 无条件 import 插件管理的 Remote 描述符、`ui-chat` 用声明合并引用文档预览的 slot 类型、`verify-product-use` 要求每个非实验包必须被默认挂载或登记角色。卸载的功能在 `scripts/product-package-policy.ts` 登记为 `optional`。
+
+### 已删除：电子表格预览（唯一删包的改动）
+
+| 改动 | 文件 |
+|---|---|
+| 删除 Excel 渲染器 | `packages/client/ui-sidebar-documentpreview/src/client/excel/`（14 文件） |
+| 删除其依赖 | `xlsx`（cdn.sheetjs.com 私源，本机不可达，是安装阻塞根因）、`@fortune-sheet/core`、`@fortune-sheet/react`、`exceljs`、`papaparse` |
+| 删除三个 pnpm patch | `patches/@fortune-sheet__*`、`patches/exceljs@4.4.0.patch`，并清 `pnpm-workspace.yaml` 的 `patchedDependencies` 与 `apps/desktop/scripts/runtime-patch-policy.ts` 对应项 |
+| Config 收缩 | `src/config.ts` 只留 `office` 缓存限额；`excel` 字段随渲染器移除 |
+| 测试同步 | 删 16 个 excel 单测 + 12 个 xlsx fixture + fuzz harness + `apps/web/tests/excel-opc.e2e.ts`；`document-preview.e2e.ts` 删掉整套表格断言（−493 行） |
+
+保留的预览类型：Markdown、代码（含 CSV 回落）、HTML、图片、PDF、Office（docx/pptx 走宿主转换，不可用时显示降级提示）、纯文本。
+
+### 只卸载不删包的功能
+
+| 功能 | 卸载的挂载点 |
+|---|---|
+| 定时任务 schedule | base 的 `schedule`/`tool-schedule`，web-app 的 `schedule`/`ui-schedule`，preset 的 `tool-schedule` |
+| 目标 goal | base 的 `goal`/`goal-round-driver`/`command-goal`/`tool-goal`，web-app 的 `ui-goal`，preset 的 `command-goal`/`tool-goal` |
+| 计划模式 plan mode | base 的 `plan-mode`，web-app 的 `ui-plan`/`plan-mode`，preset 的 `planning` 组 |
+| Open In | web-app 的 `open-in-app`/`ui-open-in-app` |
+| Cordis 自改（creator mode） | web-app 的 `cordis-host-runner`/`cordis-inspect-providers`/`cordis-client-runner`/`ui-cordis` |
+| 插件管理 UI 与工具 | preset 的 `tool-plugin-manager`/`tool-plugin-market`，web-app 的 `ui-plugin-manager`/`ui-settings-plugin-inventory`/`ui-settings-plugins`；**`plugin-manager` 服务行保留**，否则 `api-remotes` 编译失败 |
+| 子代理与工作流 | base 的 `subagent`/`subagent-spawn-in-process`/`subagent-fork-in-process`/`tool-subagent-control`/`tool-subagent`/`tool-subagent-fork`/`ptc-runtime`/`workflow-ptc`/`tool-workflow`，web-app 的 `ui-subagent`/`ui-workflow-run`/`subagent-model-selection-settings`，preset 的 `delegation` 组 |
+| 会话检索导出 | web-app 的 `session-log-download`，`ui-settings-session-log` |
+| 轨迹与统计 | web-app 的 `ui-trajectory`/`session-stats`/`session-turn-outline` |
+| 交付卡 | web-app 的 `ui-deliverables`/`deliverable-file-references`/`workspace-changes`，preset 的 `present` |
+| DeepSeek 数据回传 | base 与 sdk-minimal 的 `session-log-deepseek`、`plugin-package-inventory-deepseek`（自建网关后无意义，每次请求会回传会话日志与插件清单） |
+| 反馈面 | web-app 的 `ui-message-feedback`（host 插件此前已随 C4 移除，此行一直悬空） |
+
+### 同时修正的既有残缺
+
+- `apps/desktop/tsdown.config.ts`：删掉指向已删除文件 `preload-platform-account.ts` 的入口——C4 删了源文件但没删这个入口，`build:artifacts` 的 Desktop bundle 步骤一直失败。
+- 删掉 `presets/ptc.patch.yml`、`presets/minimal.patch.yml`、`presets/cordis.patch.yml`：三者依赖已卸载的 subagent/工作流/cordis/persistent-shell，保留会成为死组合。现在 web-app 只声明 `standard` 一个预设。
+
+### 验证（2026-11-10）
+
+`pnpm typecheck` 5/5、`pnpm run build` 10/10、`verify-product-use` 253 default + 0 optional、`verify-runtime-closure` 188 包闭合、`verify-package-meta` 通过、`verify-cordis-config` 仅剩仓库既有软链接问题（`apps/cli/tests/profiles/acp/cordis.yml` 在 Windows 上被检出为文本）、`verify-client-domain-graph` 基线与改动后同样失败（既有问题）。运行态：`dsh --profile web` 正常启动，页面返回 200 且标题 AlphaDesk，注入的 `__DSH_DOCUMENT_PREVIEW_CONFIG__` 只剩 office 限额。
+
+**注意：exe 体积基本不受本轮影响**——Electron 本体 368MB 是主导项。本轮收益在代码面与维护面，以及修复了阻断构建的残缺。
+
 ## 构建流水线（fork 自有，2026-10-19）
 
 | 路径 | 改动 |

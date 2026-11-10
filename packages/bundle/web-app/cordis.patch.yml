@@ -54,16 +54,6 @@
     - id: file-reference-local
       name: '@deepseek-ai/dsh-file-reference-local'
 
-    # Whole-log turn/step counts for the chat stats strip (the sessionStats
-    # projection key); the projection registry itself is a base-layer row.
-    - id: session-stats
-      name: '@deepseek-ai/dsh-session-stats'
-
-    # Whole-log turn outline for the chat turn rail (the turnOutline
-    # projection key): every turn stays navigable before its events page in.
-    - id: session-turn-outline
-      name: '@deepseek-ai/dsh-session-turn-outline'
-
     # Resolve bind host, SSH launch, and display once at boot, then mount the
     # matching dual-face directory picker. Mount -native or -browse directly in
     # an overlay to pin the interaction.
@@ -264,20 +254,6 @@
     - id: ui-tool
       name: '@deepseek-ai/dsh-client-ui-tool'
 
-    - id: deliverable-file-references
-      name: '@deepseek-ai/dsh-deliverable-file-references'
-
-    # Turn tail: the changed-files card and delivery cards under each closing
-    # assistant message. Remove this entry to turn the surface off; the tail
-    # hole renders empty.
-    - id: ui-deliverables
-      name: '@deepseek-ai/dsh-client-ui-deliverables'
-
-    # Records each top-level turn's changed files from git working-tree
-    # snapshots; the changed-files card above renders its events.
-    - id: workspace-changes
-      name: '@deepseek-ai/dsh-workspace-changes'
-
 
     - id: ui-workspace
       name: '@deepseek-ai/dsh-client-ui-workspace'
@@ -355,8 +331,6 @@
     - id: ui-user-questions
       name: '@deepseek-ai/dsh-client-ui-user-questions'
 
-    - id: ui-trajectory
-      name: '@deepseek-ai/dsh-client-ui-trajectory'
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
