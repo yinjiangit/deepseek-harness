@@ -8,14 +8,12 @@ import * as host from '../src/index.ts'
 /** The Peer an index render speaks for; this listener reads no field of it. */
 const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
 
-it('exposes Client cache and spreadsheet limits on the Host entry', () => {
+it('exposes the Client Office cache limits on the Host entry', () => {
   expect(host.Config).toBe(Config)
   expect(Config({})).toEqual({ office: {
     maxCachedEntries: 8, maxCachedBytes: 64 * 1024 * 1024, maxPending: 8, maxReaders: 32,
-  }, excel: { maxBytes: 16 * 1024 * 1024, maxCells: 250_000, timeoutMs: 15_000 } })
+  } })
   for (const key of ['maxCachedEntries', 'maxCachedBytes']) expect(() => Config({ office: { [key]: 0 } })).toThrow()
-  for (const key of ['maxBytes', 'maxCells', 'timeoutMs']) expect(() => Config({ excel: { [key]: 0 } })).toThrow()
-  expect(() => Config({ excel: { timeoutMs: 2_147_483_648 } })).toThrow()
 })
 
 it('embeds YAML cache settings in browser pages and withdraws them on disposal', async () => {

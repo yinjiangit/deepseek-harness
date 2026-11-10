@@ -28,7 +28,6 @@ import { HTML_BODY_ID } from '../src/client/html/index.ts'
 import { ImageBody } from '../src/client/image/ImageBody.tsx'
 import { IMAGE_BODY_ID } from '../src/client/image/index.ts'
 import { LazyPdfBody } from '../src/client/pdf/LazyPdfBody.tsx'
-import { LazyExcelBody } from '../src/client/excel/LazyExcelBody.tsx'
 import { PDF_BODY_ID } from '../src/client/pdf/index.ts'
 import { CodeBody } from '../src/client/code/CodeBody.tsx'
 import { en, ja, zh, es, fr, de, ru, pt } from '../src/client/locales.ts'
@@ -102,7 +101,6 @@ describe('ui-sidebar-documentpreview apply', () => {
       ['sidebar.right.tab.document.action', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office', 'sidebarOffice', OfficeFontAction],
       ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office', 'sidebarOffice', OfficeBody],
       ['sidebar.right.tab.document.office.pdf', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/office', 'sidebarPdf', LazyPdfBody],
-      ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel', 'sidebarExcel', LazyExcelBody],
       ['sidebar.right.tab.document', '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/code', 'sidebarCodePreview', CodeBody],
     ])
     expect(Object.keys(registered[0]!.children!)).toEqual([
@@ -140,9 +138,9 @@ describe('ui-sidebar-documentpreview apply', () => {
         owners.set(extension, earlier ?? definition.id)
       }
     }
-    const excel = '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/excel'
-    expect(previews.candidates('table.csv').map(candidate => candidate.id)).toEqual([excel, sharedHighlighter])
-    expect(previews.candidates('table.tsv')[0]?.id).toBe(excel)
+    // AlphaDesk ships no spreadsheet renderer: delimited files fall through to Code.
+    expect(previews.candidates('table.csv').map(candidate => candidate.id)).toEqual([sharedHighlighter])
+    expect(previews.candidates('table.tsv')[0]?.id).toBe(sharedHighlighter)
   })
 
   it('injects paged and byte Remote reads independently of resource metadata', async () => {
