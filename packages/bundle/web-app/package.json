@@ -36,9 +36,6 @@
     "lib/startup.js",
     "cordis.patch.yml",
     "presets/standard.patch.yml",
-    "presets/ptc.patch.yml",
-    "presets/minimal.patch.yml",
-    "presets/cordis.patch.yml",
     "lib/public-url-*.js",
     "lib/types/**/*.d.ts"
   ],
