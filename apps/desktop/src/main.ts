@@ -205,12 +205,12 @@ function runtimeResources(): RuntimeResources {
   // AlphaDesk ships no primary-runtime payload, so a packaged launch has no
   // bundled pnpm. The Host treats a missing package manager as "no plugin
   // operations", which is what this fork wants: plugin management is removed.
-  const packagedPnpm = join(process.resourcesPath, 'runtime', 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
-  const pnpm = (development ? process.env.DSH_DESKTOP_PNPM_ENTRY : undefined)
-    ?? (development ? join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs') : undefined)
-  const dsh = (development ? process.env.DSH_DESKTOP_DSH_DIR : undefined)
-    ?? (development ? join(app.getAppPath(), '.desktop-build', 'development', 'project') : join(app.getAppPath(), 'dsh'))
-  void packagedPnpm
+  const pnpm = development
+    ? process.env.DSH_DESKTOP_PNPM_ENTRY ?? join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
+    : undefined
+  const dsh = development
+    ? process.env.DSH_DESKTOP_DSH_DIR ?? join(app.getAppPath(), '.desktop-build', 'development', 'project')
+    : join(app.getAppPath(), 'dsh')
   return { node, nodeBin, pnpm, dsh }
 }
 

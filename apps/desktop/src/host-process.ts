@@ -214,7 +214,10 @@ export class DesktopHostProcess {
       entry,
       this.runtimeDir,
       this.projectDir,
-      this.primaryRuntime ?? join(this.runtimeDir, '..', 'runtime', 'primary-runtime'),
+      // Positional contract: argv[4] is the support directory. AlphaDesk ships no
+      // primary-runtime, so a packaged launch passes an empty string rather than a
+      // path to a directory that is not there.
+      this.primaryRuntime ?? '',
       ...this.packageManager === undefined ? [] : [this.packageManager.pnpm, this.packageManager.nodeBin],
     ], {
       cwd: this.projectDir,
