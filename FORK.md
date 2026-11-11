@@ -267,6 +267,79 @@ node -e "require('fs').mkdirSync(process.argv[1],{recursive:true})" "$TEMP/x"
 
 未验证的规避方向（都需要独立环境确认，不宜在 fork 上直接改上游脚本）：在能正常写文件的 Windows（非 10.0.26340 预览版）上打包；或升级 `electron` 到已修复该行为的版本后重跑。安装器产物在本机因此无法生成。
 
+## 第二轮瘦身：组合层死量与 primary-runtime 出包（2026-11-11）
+
+目标：把产品面收敛到「对话 / 工具 / MCP / 技能 / 文件读写」，同时缩小安装包。本轮**不改功能语义**，只清死量。
+
+### S1 组合层死行（零功能损失）
+
+| 路径 | 改动 |
+|---|---|
+| `packages/bundle/web-app/cordis.patch.yml` | 删 4 行 `ui-settings-shell` / `-agent-loop` / `-subagent` / `-web-search`。四者都只注册进 `plugins.item`，而该 slot 的唯一声明者是 `ui-plugin-manager`（已被前一轮卸载），因此这四行激活后永远等不到声明，是纯空转。恢复时必须与 `ui-plugin-manager` 一起挂，不可单独挂。 |
+| `scripts/product-package-policy.ts` | 对应四个包登记 `optional`（`no product runtime use` 门禁要求）。 |
+
+### S2 依赖清理
+
+| 路径 | 改动 |
+|---|---|
+| `packages/bundle/web-app/package.json` | 删 43 个未被 patch 行或源码引用的运行时依赖（ui-deliverables / ui-trajectory / ui-plugin-manager / ui-schedule / ui-subagent / ui-workflow-run / ui-goal / ui-plan / ui-open-in-app / ui-cordis / terminal / tool-* 退役集合等）。**注意保留** `dsh-host-directory-picker-{native,browse}` 与对应的 `ui-directory-picker-*`：它们由 `directory-picker-auto` 通过 `BACKEND_PACKAGES` / `SURFACE_PACKAGES` 常量动态挂载，静态扫描看不到。 |
+| `packages/bundle/base/package.json` | 删 14 个退役包依赖（tool-subagent / tool-subagent-control / workflow-ptc / tool-workflow / plan-mode / command-goal / goal / tool-goal / goal-round-driver / subagent / subagent-spawn-in-process / subagent-fork-in-process / tool-present / tool-executor-ptc）。base 的 patch 已无引用，纯元数据残留。 |
+
+安装闭包：**280 → 242 个工作区包**（web 面 256 → 242）。
+
+### S3 primary-runtime 不进安装包（−111MB）
+
+上游把 Node.js（91MB）+ pnpm（20MB）作为 `resources/runtime/primary-runtime` 随桌面应用分发，用途只有三处：插件安装/更新、终端 `dsh` 命令注册、工作区依赖加载。fork 已卸载插件管理，工作区依赖也不需要。
+
+| 路径 | 改动 |
+|---|---|
+| `apps/desktop/scripts/electron-builder-config.mjs` | `extraResources` 的 runtime 条目加 `filter: ['**/*', '!primary-runtime/**/*']`。**构建期仍生成**该 payload（`prepare-dsh.ts` 用它的 pnpm 做 profile 安装），只是不随安装包分发。 |
+| `apps/desktop/src/main.ts` | `RuntimeResources.pnpm` 改为 `string \| undefined`；打包态不再解析 `primary-runtime` 路径；`primaryRuntime` 在打包态为 `undefined`；`packageManager` 仅在 pnpm 存在时传给 Host（`host-process.ts` 本就把该参数当可选）。 |
+| `apps/desktop/src/command-management.ts` | 「Manage dsh Command」对话框改用 `process.execPath`（Electron Node 模式）执行 `runtime/cli/command-manager.js`，并补 `ELECTRON_RUN_AS_NODE=1`。原先依赖 primary-runtime 里的独立 `node.exe`。 |
+
+> 未改动 `release.ts` / `runtime-tree.ts` 的 `pnpmVersion` 必填校验：它是持久化描述符格式的一部分，改它等于改格式。本轮保留字段，只是安装包里不再有对应目录。
+
+### S4 功能面：移除会话导出，MCP 默认可用（2026-11-11 增补）
+
+| 路径 | 改动 |
+|---|---|
+| `packages/bundle/web-app/cordis.patch.yml` | 删 `session-log-download` 行（前一轮 FORK.md 声称已删，实际仍在）。该行提供 `/export` 命令、ZIP 下载与 Markdown 复制路由、会话头导出动作。 |
+| `packages/bundle/web-app/package.json` | 删 `@deepseek-ai/dsh-session-log-export` 依赖。 |
+| `scripts/product-package-policy.ts` | 登记 `packages/session-query/session-log-export` 为 `optional`。 |
+| `packages/bundle/base/cordis.patch.yml` | 新增 `mcp-server` 行（`@deepseek-ai/dsh-mcp-client`，`disabled: true`，含注释说明如何启用）。MCP 服务器是部署挂载，不是产品默认；禁用行零成本（不连接、不产出提示词、不注册工具）。 |
+| `packages/bundle/base/package.json` | 新增 `@deepseek-ai/dsh-mcp-client` 依赖（`dependencies`，按字母序插入）。 |
+
+启用方式（写进 profile patch，整行替换 config）：
+
+```yaml
+- id: mcp-server
+  disabled: false
+  config:
+    transport: stdio
+    serverName: github
+    command: npx
+    args: ['-y', '@modelcontextprotocol/server-github']
+    env:
+      GITHUB_TOKEN: !!js process.env.GITHUB_TOKEN ?? ''
+```
+
+远程服务器用 `transport: streamable-http` + `url` + `headers`。多个服务器各占一行（不同 `id` 与 `serverName`）；模型侧工具名固定为 `mcp__<serverName>__<tool>`。
+
+### S5 已验证（增补）
+
+- `pnpm install` 24.6s
+- `pnpm run build:artifacts` **8/8**（99s）
+- `verify-product-use`：231 default、0 optional、0 failures
+- `dsh --profile web --dump-config`：`mcp-server` 行存在且 `disabled: true`；`session-log-download` 计数为 0
+- `dsh web` 启动正常（HTTP 401 = 一次性 token 认证）
+
+### S6 下一轮候选（未做）
+
+- **`lib/` 中 78MB 构建期产物**：`.map`(41MB) / `.tsbuildinfo`(29MB) / `.d.ts`(8.6MB)。桌面打包的 `desktopRuntimeFileExclusion` 已排除这三类，对桌面体积无影响；但 Web 分发包若按 `files` 打包仍会带 `.d.ts`。
+- **移除不用的 profile**：`acp` / `sdk` / `sdk-minimal` / `headless` 四个 bundle 及其闭包（约 21 个包）。桌面只发 `web`。
+- **MCP 无 UI 配置入口**：当前只能改 `cordis.patch.yml`。若需要图形化，得新写一个 settings 分节插件（`settings.section`）。
+
+
 ## 已知残留（按设计保留）
 
 - `docs/**` 叙述文档仍用 "DeepSeek Harness" 指代本项目（fork 文档策略：避开高频冲突区的大面积替换；产品面已全部改名）

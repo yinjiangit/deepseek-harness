@@ -156,7 +156,12 @@ export function createElectronBuilderConfig(
     ],
     asarUnpack: unpack,
     extraResources: [
-      { from: buildPaths.runtime, to: 'runtime' },
+      // AlphaDesk ships no primary-runtime payload: the bundled Node.js + pnpm
+      // (111 MB) served plugin installation, the terminal `dsh` command link, and
+      // workspace dependency loading — all removed with plugin management. The
+      // build still materializes it (the packaging scripts consume its pnpm), but
+      // the installed application does not carry it.
+      { from: buildPaths.runtime, to: 'runtime', filter: ['**/*', '!primary-runtime/**/*'] },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),

@@ -361,6 +361,40 @@
     - id: mcp-resources
       name: '@deepseek-ai/dsh-mcp-resources'
 
+    # ── MCP servers (AlphaDesk: on by default, no server configured) ──────────
+    #
+    # `dsh-mcp-client` connects to ONE external MCP server per row and registers
+    # its tools as `mcp__<serverName>__<tool>`. The row ships disabled: an MCP
+    # server is a deployment attachment, never a product default, and a disabled
+    # row costs nothing (no connection attempt, no prompt text, no tools).
+    #
+    # Add a server by restating this row in the profile patch
+    # (`$DSH_HOME/profiles/<name>/cordis.patch.yml`) — a patch replaces the whole
+    # config, so every key this row owns is restated:
+    #
+    #   - id: mcp-server
+    #     disabled: false
+    #     config:
+    #       transport: stdio
+    #       serverName: github
+    #       command: npx
+    #       args: ['-y', '@modelcontextprotocol/server-github']
+    #       env:
+    #         GITHUB_TOKEN: !!js process.env.GITHUB_TOKEN ?? ''
+    #
+    # Or use `transport: streamable-http` with `url` and `headers` for a remote
+    # server. Additional servers are separate rows with their own ids and
+    # `serverName`s; the id is a Loader row id, the serverName is the model-facing
+    # tool namespace. Edits reload the connection in place.
+    - id: mcp-server
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: true
+      config:
+        transport: stdio
+        serverName: mcp_server
+        command: npx
+        args: []
+
     # ── rows every mode mounts, whose values each overlay may state ──────────────
 
     # Shared tool definitions and the deployment’s native executor.

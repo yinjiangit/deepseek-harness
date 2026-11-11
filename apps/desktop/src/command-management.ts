@@ -136,19 +136,22 @@ export class DesktopCommandManager {
   async idle(): Promise<void> { await this.operation }
 
   private async worker(operation: string, expected?: string, elevated = false): Promise<CommandState> {
-    const node = join(this.options.resources, 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
+    // AlphaDesk ships no primary-runtime Node. Electron's own Node mode runs the
+    // command-manager entry; the bundled Node existed only for this dialog and for
+    // plugin installation, which the fork removes.
+    const node = process.execPath
     const entry = join(this.options.resources, 'runtime', 'cli', 'command-manager.js')
     let stdout: string
     try {
       if (elevated) {
-        const appleScript = 'on run argv\nset cmd to "/usr/bin/env -i " & quoted form of (item 1 of argv) & " " & quoted form of (item 2 of argv) & " " & quoted form of (item 3 of argv) & " " & quoted form of (item 4 of argv)\ndo shell script cmd with administrator privileges\nend run'
+        const appleScript = 'on run argv\nset cmd to "/usr/bin/env -i " & quoted form of (item 1 of argv) & " " & quoted form of (item 2 of argv) & " " & quoted form of (item 3 of argv) & " " & quoted form of (item 4 of argv) & "\ndo shell script cmd with administrator privileges\nend run'
         stdout = (await promisify(execFile)('/usr/bin/osascript', ['-e', appleScript, node, entry, operation, expected ?? ''],
-          { maxBuffer: 65536 })).stdout
+          { maxBuffer: 65536, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } })).stdout
       } else {
         const env = Object.fromEntries(Object.entries(process.env)
           .filter(([name]) => !/KEY|SECRET|TOKEN|PASSWORD|^NODE_OPTIONS$|^NODE_PATH$/iu.test(name)))
         stdout = (await promisify(execFile)(node, [entry, operation, ...expected === undefined ? [] : [expected]],
-          { timeout: 30000, maxBuffer: 65536, windowsHide: true, env })).stdout
+          { timeout: 30000, maxBuffer: 65536, windowsHide: true, env: { ...env, ELECTRON_RUN_AS_NODE: '1' } })).stdout
       }
     } catch (error) {
       if (elevated && object(error) && typeof error.stderr === 'string' && /\(-128\)\s*$/u.test(error.stderr)) {

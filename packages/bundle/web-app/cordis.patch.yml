@@ -33,10 +33,11 @@
 
 # `dsh.client` rows are the browser roster the modules node half scans into
 # window.__DSH_BOOT__; the modules row is simultaneously a host row.
+#
+# `session-log-download` is NOT mounted: AlphaDesk keeps the agent's base
+# surface only. The row owned the `/export` command, the ZIP download and
+# Markdown copy routes, and the Session Header's export actions.
 - insert:
-    - id: session-log-download
-      name: '@deepseek-ai/dsh-session-log-export'
-
     - id: ui-file-actions
       name: '@deepseek-ai/dsh-client-ui-file-actions'
     - id: ui-context-menu
@@ -285,21 +286,12 @@
     - id: entry-customization
       name: '@deepseek-ai/dsh-client-ui-entry-customization'
 
-    # The official settings pages: one companion package per host-plane
-    # namespace, each registering its page into the Plugins page while the
-    # Host serves the namespace.
-    - id: ui-settings-shell
-      name: '@deepseek-ai/dsh-client-ui-settings-shell'
-
-    - id: ui-settings-agent-loop
-      name: '@deepseek-ai/dsh-client-ui-settings-agent-loop'
-
-    - id: ui-settings-subagent
-      name: '@deepseek-ai/dsh-client-ui-settings-subagent'
-
-    - id: ui-settings-web-search
-      name: '@deepseek-ai/dsh-client-ui-settings-web-search'
-
+    # The official per-namespace settings pages (ui-settings-shell, -agent-loop,
+    # -subagent, -web-search) are NOT mounted: each registers into the Plugins
+    # page's `plugins.item` slot, declared only by ui-plugin-manager, which this
+    # fork removes. Mounting them without that declarer leaves every plugin
+    # pending on a slot that never appears — inert bundles with no UI. Restore
+    # the four rows together with ui-plugin-manager, never alone.
     - id: ui-user-questions
       name: '@deepseek-ai/dsh-client-ui-user-questions'
 

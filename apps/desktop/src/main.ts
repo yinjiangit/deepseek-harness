@@ -193,7 +193,8 @@ protocol.registerSchemesAsPrivileged([{
 interface RuntimeResources {
   readonly nodeBin: string
   readonly node: string
-  readonly pnpm: string
+  /** Bundled pnpm entry; absent in a packaged AlphaDesk build, which ships no primary runtime. */
+  readonly pnpm: string | undefined
   readonly dsh: string
 }
 
@@ -201,11 +202,15 @@ function runtimeResources(): RuntimeResources {
   const development = !app.isPackaged
   const node = process.execPath
   const nodeBin = development ? join(app.getAppPath(), 'scripts', 'node-bin') : join(process.resourcesPath, 'runtime', 'bin')
+  // AlphaDesk ships no primary-runtime payload, so a packaged launch has no
+  // bundled pnpm. The Host treats a missing package manager as "no plugin
+  // operations", which is what this fork wants: plugin management is removed.
+  const packagedPnpm = join(process.resourcesPath, 'runtime', 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs')
   const pnpm = (development ? process.env.DSH_DESKTOP_PNPM_ENTRY : undefined)
-    ?? (development ? join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs')
-      : join(process.resourcesPath, 'runtime', 'primary-runtime', 'dependencies', 'pnpm', 'bin', 'pnpm.mjs'))
+    ?? (development ? join(app.getAppPath(), 'node_modules', 'pnpm', 'bin', 'pnpm.mjs') : undefined)
   const dsh = (development ? process.env.DSH_DESKTOP_DSH_DIR : undefined)
     ?? (development ? join(app.getAppPath(), '.desktop-build', 'development', 'project') : join(app.getAppPath(), 'dsh'))
+  void packagedPnpm
   return { node, nodeBin, pnpm, dsh }
 }
 
@@ -356,9 +361,11 @@ async function main(): Promise<void> {
   const resources = runtimeResources()
   const paths = resolveDesktopPaths()
   const development = !app.isPackaged
+  // A packaged AlphaDesk build carries no primary-runtime; only an unpackaged
+  // development launch has one prepared beside the build output.
   const primaryRuntime = development
     ? developmentPrimaryRuntime()
-    : join(process.resourcesPath, 'runtime', 'primary-runtime')
+    : undefined
   const activeProject = paths.profile
   const manager = new DesktopProjectManager(paths, resources)
   // Dock and Finder launches inherit only launchd's environment; every Host shares one login-shell read.
@@ -487,7 +494,8 @@ async function main(): Promise<void> {
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
       hostInspectPort, { ...hostEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
       primaryRuntime,
-      resources, undefined, (record) => {
+      resources.pnpm === undefined ? undefined : { pnpm: resources.pnpm, nodeBin: resources.nodeBin },
+      undefined, (record) => {
         operationJournal ??= new OperationJournal(join(app.getPath('userData'), 'plugin-operations'), {
           segmentBytes: 256 * 1024, recordBytes: 4096, queuedBytes: 64 * 1024,
         })
